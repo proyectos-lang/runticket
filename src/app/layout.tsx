@@ -8,6 +8,9 @@ const display = Archivo({
   variable: "--fuente-display",
   subsets: ["latin"],
   display: "swap",
+  // La cursiva la pide el logotipo. Sin cargarla, el navegador la falsifica
+  // inclinando la redonda, y en un peso 900 el resultado se nota deformado.
+  style: ["normal", "italic"],
 });
 
 // Mono para fechas, precios, tiempos, dorsales y etiquetas en mayúscula.
