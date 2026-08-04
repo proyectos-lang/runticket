@@ -12,12 +12,20 @@ export type OpcionesCompresion = {
   /** Lado mayor en píxeles; la imagen se reduce proporcionalmente. */
   ladoMaximo: number;
   calidad?: number;
+  /**
+   * Recorta al cuadrado tomando el centro. Para el avatar: se guarda ya cuadrado
+   * en vez de dejar que el CSS lo recorte al pintarlo, así la foto es la misma
+   * en cualquier sitio donde se use después y no se suben franjas que nunca se
+   * van a ver.
+   */
+  cuadrada?: boolean;
 };
 
 export const PRESETS = {
   banner: { ladoMaximo: 1600 },
   galeria: { ladoMaximo: 1200 },
   logo: { ladoMaximo: 512 },
+  avatar: { ladoMaximo: 512, cuadrada: true },
 } satisfies Record<string, OpcionesCompresion>;
 
 export function esImagenSoportada(archivo: File): boolean {
@@ -26,22 +34,34 @@ export function esImagenSoportada(archivo: File): boolean {
 
 export async function comprimirImagen(
   archivo: File,
-  { ladoMaximo, calidad = 0.82 }: OpcionesCompresion
+  { ladoMaximo, calidad = 0.82, cuadrada = false }: OpcionesCompresion
 ): Promise<{ blob: Blob; extension: string }> {
   // `imageOrientation: "from-image"` respeta el EXIF; sin él, las fotos tomadas
   // en vertical con el móvil salen giradas.
   const bitmap = await createImageBitmap(archivo, { imageOrientation: "from-image" });
 
-  const escala = Math.min(1, ladoMaximo / Math.max(bitmap.width, bitmap.height));
-  const ancho = Math.round(bitmap.width * escala);
-  const alto = Math.round(bitmap.height * escala);
-
   const lienzo = document.createElement("canvas");
-  lienzo.width = ancho;
-  lienzo.height = alto;
   const ctx = lienzo.getContext("2d");
   if (!ctx) throw new Error("Tu navegador no permite procesar la imagen.");
-  ctx.drawImage(bitmap, 0, 0, ancho, alto);
+
+  if (cuadrada) {
+    // Se toma el cuadrado central del original y se dibuja completo en un lienzo
+    // cuadrado: recortar antes de escalar evita deformar la cara, que es lo que
+    // pasaría estirando una foto apaisada hasta hacerla cuadrada.
+    const lado = Math.min(bitmap.width, bitmap.height);
+    const origenX = Math.round((bitmap.width - lado) / 2);
+    const origenY = Math.round((bitmap.height - lado) / 2);
+    const destino = Math.min(lado, ladoMaximo);
+
+    lienzo.width = destino;
+    lienzo.height = destino;
+    ctx.drawImage(bitmap, origenX, origenY, lado, lado, 0, 0, destino, destino);
+  } else {
+    const escala = Math.min(1, ladoMaximo / Math.max(bitmap.width, bitmap.height));
+    lienzo.width = Math.round(bitmap.width * escala);
+    lienzo.height = Math.round(bitmap.height * escala);
+    ctx.drawImage(bitmap, 0, 0, lienzo.width, lienzo.height);
+  }
   bitmap.close();
 
   const webp = await new Promise<Blob | null>((r) => lienzo.toBlob(r, "image/webp", calidad));

@@ -40,6 +40,7 @@ export default async function PortalPage() {
     <div className="-mx-6 -my-8 flex flex-col lg:-mx-8">
       <CabeceraPerfil
         nombre={nombre}
+        fotoUrl={perfil?.foto_url}
         ciudad={ciudad?.nombre}
         desdeAnio={t.desdeAnio}
         club={t.club}

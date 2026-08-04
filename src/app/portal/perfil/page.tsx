@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PerfilForm } from "./PerfilForm";
+import { SubidorAvatar } from "@/components/portal/SubidorAvatar";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,18 @@ export default async function PerfilPage({
           Estos datos se precargan en cada inscripción; solo los completas una vez.
         </p>
       </div>
+      {/*
+        Fuera del formulario a propósito: la foto se guarda sola al elegirla, y
+        meterla dentro del `<form>` haría creer que se pierde si no se pulsa
+        «Guardar». Va arriba porque es lo primero que se reconoce del perfil.
+      */}
+      <section className="flex justify-center rounded-2xl border p-6 border-linea bg-superficie">
+        <SubidorAvatar
+          fotoInicial={perfil?.foto_url ?? null}
+          nombre={[perfil?.nombres, perfil?.apellidos].filter(Boolean).join(" ")}
+        />
+      </section>
+
       <PerfilForm perfil={perfil!} paises={paises ?? []} next={next} />
     </div>
   );

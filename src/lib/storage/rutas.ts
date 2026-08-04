@@ -12,7 +12,7 @@
  *     temporal en cada lectura (así lo hace ya el flujo de inscripción).
  */
 
-export const BUCKETS_PUBLICOS = ["logos-empresa", "eventos", "fotos-evento"] as const;
+export const BUCKETS_PUBLICOS = ["logos-empresa", "eventos", "fotos-evento", "avatares"] as const;
 export const BUCKETS_PRIVADOS = ["comprobantes", "declaraciones", "certificados"] as const;
 
 export type BucketPublico = (typeof BUCKETS_PUBLICOS)[number];
@@ -30,6 +30,13 @@ export const rutaEvento = (empresaId: string, eventoId: string, archivo: string)
 
 /** Prefijo de todos los archivos de un evento; se usa al borrarlo. */
 export const prefijoEvento = (empresaId: string, eventoId: string) => `${empresaId}/${eventoId}`;
+
+/**
+ * Avatares: la llave del primer segmento es el **usuario**, no la empresa. Un
+ * corredor no pertenece a ninguna, y la política del bucket compara esa carpeta
+ * con `auth.uid()`.
+ */
+export const rutaAvatar = (usuarioId: string, archivo: string) => `${usuarioId}/${archivo}`;
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { perfilSchema } from "@/lib/validacion/perfil";
 import { rutaInternaSegura } from "@/lib/seguridad";
+import { urlPublicaValida, rutaDesdeUrlPublica } from "@/lib/storage/rutas";
 
 export type PerfilState = {
   status: "idle" | "error" | "guardado";
@@ -86,4 +87,67 @@ export async function guardarPerfil(
   if (destino) redirect(destino);
 
   return { status: "guardado" };
+}
+
+/**
+ * Guarda la foto de perfil que el navegador acaba de subir a Storage.
+ *
+ * El archivo va directo del navegador al bucket —las Server Actions topan en
+ * 1 MB y una foto de móvil no cabe— y aquí solo llega su URL. Por eso se
+ * comprueba que apunte de verdad a la carpeta de esta persona: la URL viene del
+ * cliente y sin esa comprobación cualquiera podría guardar en su perfil la
+ * imagen de otro sitio.
+ */
+export async function guardarFotoPerfil(url: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/portal/perfil");
+
+  if (!urlPublicaValida(url, "avatares", user.id)) {
+    throw new Error("Esa imagen no es tuya.");
+  }
+
+  const { data: previo } = await supabase
+    .from("perfiles")
+    .select("foto_url")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { error } = await supabase.from("perfiles").update({ foto_url: url }).eq("id", user.id);
+  if (error) throw new Error("No se pudo guardar la foto: " + error.message);
+
+  // La anterior se borra del bucket: sin esto, cada cambio de foto dejaría el
+  // archivo viejo ocupando sitio para siempre.
+  if (previo?.foto_url && previo.foto_url !== url) {
+    const anterior = rutaDesdeUrlPublica(previo.foto_url, "avatares");
+    if (anterior) await supabase.storage.from("avatares").remove([anterior]);
+  }
+
+  revalidatePath("/portal", "layout");
+}
+
+export async function quitarFotoPerfil(): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/portal/perfil");
+
+  const { data: previo } = await supabase
+    .from("perfiles")
+    .select("foto_url")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const { error } = await supabase.from("perfiles").update({ foto_url: null }).eq("id", user.id);
+  if (error) throw new Error("No se pudo quitar la foto: " + error.message);
+
+  if (previo?.foto_url) {
+    const ruta = rutaDesdeUrlPublica(previo.foto_url, "avatares");
+    if (ruta) await supabase.storage.from("avatares").remove([ruta]);
+  }
+
+  revalidatePath("/portal", "layout");
 }

@@ -204,6 +204,8 @@ export interface Database {
             | "competitivo"
             | null;
           terminos_aceptados_en: string | null;
+          /** URL pública del avatar en el bucket `avatares` (migración 0025). */
+          foto_url: string | null;
           created_at: string;
           updated_at: string;
         };
