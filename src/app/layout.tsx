@@ -21,8 +21,22 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RunTicket",
-  description: "Inscripciones para carreras populares.",
+  // Sin `metadataBase`, Next no puede formar la URL absoluta de la imagen de
+  // vista previa y al compartir un enlace no se ve nada. En producción hay que
+  // apuntar NEXT_PUBLIC_SITE_URL al dominio real.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  title: "RunTicket HN",
+  description: "Inscripciones para carreras populares en Honduras.",
+  // `opengraph-image.png` vive junto a este archivo y Next lo enlaza solo; esto
+  // es lo demás que necesitan WhatsApp, Facebook y X para pintar la tarjeta.
+  openGraph: {
+    title: "RunTicket HN",
+    description: "Inscripciones para carreras populares en Honduras.",
+    siteName: "RunTicket HN",
+    locale: "es_HN",
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
