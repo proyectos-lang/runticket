@@ -35,9 +35,20 @@ export default async function BienvenidaPage() {
         </span>
         <h1 className="display text-2xl text-texto">¡Llegaste a la meta!</h1>
         <p className="max-w-80 text-sm leading-relaxed text-atenuado">
-          Tu correo quedó confirmado y tu cuenta ya está activa. Desde ahora puedes inscribirte
-          en cualquier carrera publicada en RunTicket HN.
+          {user
+            ? "Tu correo quedó confirmado y ya entraste. No hace falta que vuelvas a iniciar sesión."
+            : "Tu correo quedó confirmado y tu cuenta ya está activa. Entra para empezar a inscribirte."}
         </p>
+        {/*
+          Confirmar abre una pestaña nueva desde el correo, y ahí no queda claro
+          si uno entró ni con qué cuenta. Decir el correo lo zanja: sin esto, lo
+          natural es buscar un botón de iniciar sesión que ya no hace falta.
+        */}
+        {user?.email && (
+          <p className="font-mono text-[0.65625rem] uppercase tracking-etiqueta text-mudo">
+            {user.email}
+          </p>
+        )}
       </div>
 
       {user ? (

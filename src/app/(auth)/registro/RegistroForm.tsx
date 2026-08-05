@@ -16,8 +16,13 @@ export function RegistroForm() {
   if (state.status === "revisa-correo") {
     return (
       <Aviso tono="cian" titulo="Revisa tu correo">
-        Te enviamos un enlace para confirmar tu cuenta. Si no aparece en unos minutos, mira en la
-        carpeta de correo no deseado.
+        Te enviamos un enlace para confirmar tu cuenta. {/*
+          El remitente no se puede personalizar con el servicio de correo actual,
+          y un nombre desconocido es justo lo que hace que el mensaje acabe en no
+          deseado. Decirlo aquí ahorra el «no me llegó nada».
+        */}
+        Llega a nombre de <strong>Supabase Auth</strong>, así que si no lo ves en unos minutos
+        búscalo por ese nombre y mira en la carpeta de correo no deseado.
       </Aviso>
     );
   }

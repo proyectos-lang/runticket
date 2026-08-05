@@ -31,9 +31,21 @@ export async function registrarCuenta(_prevState: RegistroState, formData: FormD
   }
 
   const supabase = await createClient();
+  const sitio = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const { data, error } = await supabase.auth.signUp({
     email: parsed.data.correo,
     password: parsed.data.password,
+    options: {
+      /**
+       * Sin esto, el enlace del correo lleva al Site URL —la portada— y quien
+       * confirma acaba en la página de inicio sin saber si funcionó.
+       *
+       * Lo fija aquí y no solo en la plantilla porque la plantilla se pega a
+       * mano en el panel de Supabase: mientras no se haya hecho, el correo por
+       * defecto usa este destino y el flujo termina igual de bien.
+       */
+      emailRedirectTo: `${sitio}/auth/confirmar?next=/bienvenida`,
+    },
   });
 
   if (error) {
