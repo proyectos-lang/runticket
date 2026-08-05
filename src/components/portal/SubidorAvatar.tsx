@@ -1,28 +1,32 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { comprimirImagen, esImagenSoportada, PRESETS } from "@/lib/imagenes/comprimir";
 import { rutaAvatar } from "@/lib/storage/rutas";
+import { Boton } from "@/components/ui/Boton";
 import { guardarFotoPerfil, quitarFotoPerfil } from "@/app/portal/perfil/actions";
 
 /**
  * Foto de perfil del corredor.
  *
- * Un solo `<input type="file" accept="image/*">` **sin** el atributo `capture`.
- * Puede parecer poco, pero es justo lo que da la mejor experiencia en todos los
- * dispositivos a la vez: en Android e iOS el sistema abre su propio menú con
- * «Cámara», «Fototeca» y «Archivos», y en escritorio abre el explorador. Poner
- * `capture` forzaría la cámara y dejaría fuera la galería, que es de donde
- * saca la foto casi todo el mundo.
+ * Tres decisiones que vienen de ver fallar la versión anterior:
  *
- * En escritorio se añade arrastrar y soltar, que ahí sí se espera y en móvil no
- * existe.
+ * 1. **Se elige con un botón rotulado, no pulsando el círculo.** Antes el único
+ *    modo de abrir el selector era tocar el avatar, y un círculo sin texto no
+ *    dice que se pueda pulsar. Peor: si su clase de tamaño no llega a
+ *    generarse, el botón queda de 4×4 px y no hay literalmente dónde pulsar.
+ *    Con un botón de texto, el control se ve y funciona pase lo que pase.
  *
- * La imagen se sube directa a Storage con la sesión del usuario, así que la
- * política del bucket (primera carpeta = su id) se evalúa de verdad; la acción
- * de servidor solo guarda la URL después de comprobar que es suya.
+ * 2. **La foto se revisa antes de subirla.** Al elegirla se muestra en grande,
+ *    ya recortada como quedará, y hasta que no se confirma no sale del
+ *    dispositivo. Antes se subía y guardaba de golpe, sin ocasión de mirarla.
+ *
+ * 3. **Un solo `<input type="file">` sin `capture`**: en Android e iOS el
+ *    sistema ofrece cámara, fototeca y archivos; en escritorio, el explorador y
+ *    arrastrar y soltar. Forzar la cámara dejaría fuera la galería, que es de
+ *    donde sale casi toda foto de perfil.
  */
 export function SubidorAvatar({
   fotoInicial,
@@ -31,12 +35,24 @@ export function SubidorAvatar({
   fotoInicial: string | null;
   nombre: string;
 }) {
-  const [foto, setFoto] = useState(fotoInicial);
-  const [subiendo, setSubiendo] = useState(false);
+  const [guardada, setGuardada] = useState(fotoInicial);
+  /** Foto elegida y pendiente de que la persona la apruebe. */
+  const [propuesta, setPropuesta] = useState<{ blob: Blob; extension: string; url: string } | null>(
+    null
+  );
+  const [trabajando, setTrabajando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [encima, setEncima] = useState(false);
   const [pendiente, startTransition] = useTransition();
   const entrada = useRef<HTMLInputElement>(null);
+
+  // La vista previa vive en memoria del navegador; hay que liberarla o se queda
+  // ocupada mientras dure la pestaña.
+  useEffect(() => {
+    return () => {
+      if (propuesta) URL.revokeObjectURL(propuesta.url);
+    };
+  }, [propuesta]);
 
   const iniciales =
     nombre
@@ -46,20 +62,38 @@ export function SubidorAvatar({
       .map((p) => p[0]?.toUpperCase())
       .join("") || "?";
 
-  async function procesar(archivo: File | undefined) {
+  async function elegir(archivo: File | undefined) {
     if (!archivo) return;
     setError(null);
 
     if (!esImagenSoportada(archivo)) {
       setError(
         archivo.name.toLowerCase().endsWith(".heic")
-          ? "Las fotos HEIC del iPhone hay que exportarlas como JPG."
+          ? "Las fotos HEIC del iPhone hay que exportarlas como JPG antes de subirlas."
           : "Ese archivo no es una imagen. Usa JPG, PNG o WebP."
       );
       return;
     }
 
-    setSubiendo(true);
+    setTrabajando(true);
+    try {
+      // Se comprime y recorta **antes** de enseñarla: así la vista previa es la
+      // foto de verdad, no el original, y no se aprueba una cosa para acabar
+      // guardando otra.
+      const { blob, extension } = await comprimirImagen(archivo, PRESETS.avatar);
+      if (propuesta) URL.revokeObjectURL(propuesta.url);
+      setPropuesta({ blob, extension, url: URL.createObjectURL(blob) });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo leer la imagen.");
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  async function confirmar() {
+    if (!propuesta) return;
+    setError(null);
+    setTrabajando(true);
     try {
       const supabase = createClient();
       const {
@@ -67,115 +101,144 @@ export function SubidorAvatar({
       } = await supabase.auth.getUser();
       if (!user) throw new Error("Tu sesión caducó. Vuelve a entrar.");
 
-      const { blob, extension } = await comprimirImagen(archivo, PRESETS.avatar);
-      const ruta = rutaAvatar(user.id, `avatar-${Date.now()}.${extension}`);
-
+      const ruta = rutaAvatar(user.id, `avatar-${Date.now()}.${propuesta.extension}`);
       const { error: fallo } = await supabase.storage
         .from("avatares")
-        .upload(ruta, blob, { contentType: blob.type });
+        .upload(ruta, propuesta.blob, { contentType: propuesta.blob.type });
       if (fallo) throw new Error(fallo.message);
 
       const { data } = supabase.storage.from("avatares").getPublicUrl(ruta);
-      // Optimista: la foto se ve en cuanto sube, sin esperar al servidor.
-      setFoto(data.publicUrl);
       startTransition(async () => {
         try {
           await guardarFotoPerfil(data.publicUrl);
+          setGuardada(data.publicUrl);
+          URL.revokeObjectURL(propuesta.url);
+          setPropuesta(null);
         } catch (e) {
-          setFoto(fotoInicial);
           setError(e instanceof Error ? e.message : "No se pudo guardar la foto.");
         }
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo subir la foto.");
     } finally {
-      setSubiendo(false);
+      setTrabajando(false);
     }
   }
 
-  const ocupado = subiendo || pendiente;
+  function descartar() {
+    if (propuesta) URL.revokeObjectURL(propuesta.url);
+    setPropuesta(null);
+    setError(null);
+  }
+
+  const ocupado = trabajando || pendiente;
+  const aVista = propuesta?.url ?? guardada;
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setEncima(true);
-        }}
-        onDragLeave={() => setEncima(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setEncima(false);
-          void procesar(e.dataTransfer.files?.[0]);
-        }}
-        className="relative"
-      >
-        <button
-          type="button"
-          onClick={() => entrada.current?.click()}
-          disabled={ocupado}
-          aria-label={foto ? "Cambiar mi foto de perfil" : "Añadir una foto de perfil"}
-          className={`group relative size-28 overflow-hidden rounded-full border-2 transition-colors disabled:cursor-wait ${
-            encima ? "border-naranja bg-naranja/10" : "border-naranja/70 hover:border-naranja"
-          }`}
-        >
-          {foto ? (
-            <Image src={foto} alt="" fill sizes="112px" className="object-cover" />
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        setEncima(true);
+      }}
+      onDragLeave={() => setEncima(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setEncima(false);
+        void elegir(e.dataTransfer.files?.[0]);
+      }}
+      className={`flex flex-col items-center gap-4 rounded-xl border border-dashed px-6 py-6 transition-colors ${
+        encima ? "border-naranja bg-naranja/8" : "border-transparent"
+      }`}
+    >
+      {/* Círculo de vista previa. Es solo presentación: no se pulsa, y por eso
+          no pasa nada si algún día no se pinta como debe. */}
+      <div className="relative size-32 shrink-0 overflow-hidden rounded-full border-2 border-naranja/70">
+        {aVista ? (
+          propuesta ? (
+            // Vista previa local (blob:); el optimizador de next/image no la
+            // sirve, así que aquí va una etiqueta corriente.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={propuesta.url} alt="Vista previa de tu foto" className="size-full object-cover" />
           ) : (
-            // Iniciales en vez de un icono genérico: identifican de un vistazo y
-            // no dejan el hueco con pinta de estar roto mientras no haya foto.
-            <span className="flex size-full items-center justify-center bg-superficie-2 font-mono text-2xl font-bold text-texto/35">
-              {iniciales}
-            </span>
-          )}
-
-          {/* La capa aparece al pasar el ratón y siempre en táctil, donde no
-              existe el hover y si no nada indicaría que se puede pulsar. */}
-          <span className="absolute inset-x-0 bottom-0 flex h-9 items-center justify-center bg-tinta/75 font-mono text-[0.5625rem] font-bold uppercase tracking-etiqueta text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-            {ocupado ? "Subiendo…" : foto ? "Cambiar" : "Añadir"}
+            <Image src={guardada!} alt="Tu foto de perfil" fill sizes="128px" className="object-cover" />
+          )
+        ) : (
+          // Iniciales en vez de un icono genérico: identifican de un vistazo y
+          // no dejan el hueco con pinta de estar roto.
+          <span className="flex size-full items-center justify-center bg-superficie-2 font-mono text-3xl font-bold text-texto/35">
+            {iniciales}
           </span>
-        </button>
+        )}
       </div>
 
       <input
         ref={entrada}
         type="file"
-        // Sin `capture`: así el móvil ofrece cámara, galería y archivos, en vez
-        // de abrir la cámara y nada más.
+        // Sin `capture`: el móvil ofrece cámara, galería y archivos.
         accept="image/jpeg,image/png,image/webp,image/avif"
         className="sr-only"
         onChange={(e) => {
-          void procesar(e.target.files?.[0]);
+          void elegir(e.target.files?.[0]);
           e.target.value = "";
         }}
       />
 
-      <div className="flex flex-col items-center gap-1">
-        <p className="text-center text-xs text-mudo">
-          Tócala para hacerte una foto o elegir una.{" "}
-          <span className="hidden sm:inline">También puedes arrastrarla aquí.</span>
-        </p>
-        {foto && !ocupado && (
-          <button
-            type="button"
-            onClick={() =>
-              startTransition(async () => {
-                try {
-                  await quitarFotoPerfil();
-                  setFoto(null);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "No se pudo quitar la foto.");
+      {propuesta ? (
+        // ── Revisión: la foto todavía no ha salido del dispositivo ───────────
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-center text-sm text-atenuado">
+            Así quedará tu foto. ¿La usamos?
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Boton variante="primaria" onClick={confirmar} disabled={ocupado}>
+              {ocupado ? "Guardando…" : "Usar esta foto"}
+            </Boton>
+            <Boton variante="secundaria" onClick={() => entrada.current?.click()} disabled={ocupado}>
+              Elegir otra
+            </Boton>
+            <Boton variante="fantasma" onClick={descartar} disabled={ocupado}>
+              Cancelar
+            </Boton>
+          </div>
+        </div>
+      ) : (
+        // ── Reposo ───────────────────────────────────────────────────────────
+        <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
+            <Boton
+              variante={guardada ? "secundaria" : "primaria"}
+              onClick={() => entrada.current?.click()}
+              disabled={ocupado}
+            >
+              {ocupado ? "Un momento…" : guardada ? "Cambiar foto" : "Seleccionar foto"}
+            </Boton>
+            {guardada && (
+              <Boton
+                variante="fantasma"
+                disabled={ocupado}
+                onClick={() =>
+                  startTransition(async () => {
+                    try {
+                      await quitarFotoPerfil();
+                      setGuardada(null);
+                    } catch (e) {
+                      setError(e instanceof Error ? e.message : "No se pudo quitar la foto.");
+                    }
+                  })
                 }
-              })
-            }
-            className="text-xs underline-offset-2 hover:underline text-atenuado"
-          >
-            Quitar foto
-          </button>
-        )}
-      </div>
+              >
+                Quitar
+              </Boton>
+            )}
+          </div>
+          <p className="max-w-72 text-center text-xs text-mudo">
+            Desde el móvil puedes hacerte una foto o elegirla de tu galería.
+            <span className="hidden sm:inline"> En el ordenador también puedes arrastrarla aquí.</span>
+          </p>
+        </div>
+      )}
 
-      {error && <p className="max-w-64 text-center text-sm text-rojo">{error}</p>}
+      {error && <p className="max-w-72 text-center text-sm text-rojo">{error}</p>}
     </div>
   );
 }
