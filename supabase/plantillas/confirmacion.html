@@ -1,0 +1,135 @@
+<!--
+  RunTicket HN · Confirma tu cuenta en RunTicket HN
+
+  GENERADO por supabase/plantillas/generar.mjs — no editar a mano.
+  Cambia el generador y vuelve a ejecutarlo, o los tres correos se separarán.
+
+  Se pega en Supabase → Authentication → Emails. El asunto va en su campo:
+  Confirma tu cuenta en RunTicket HN
+-->
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="supported-color-schemes" content="dark light" />
+    <title>Confirma tu cuenta en RunTicket HN</title>
+    <style>
+      /* Solo lo que no cabe en línea. Quien las ignore se queda con los
+         atributos, que ya dan un resultado correcto. */
+      @media only screen and (max-width: 620px) {
+        .contenedor { width: 100% !important; }
+        .relleno { padding-left: 22px !important; padding-right: 22px !important; }
+        .titulo { font-size: 26px !important; }
+        .logo { width: 200px !important; }
+      }
+      a { color: #ff8a45; }
+    </style>
+  </head>
+
+  <body style="margin:0; padding:0; background-color:#07080a; -webkit-font-smoothing:antialiased;">
+    <!-- Preencabezado: es el texto que acompaña al asunto en la bandeja de
+         entrada. Aquí pesa más de lo normal, porque el remitente aparece como
+         «Supabase Auth» y esto es lo único que dice de quién viene el correo. -->
+    <div style="display:none; max-height:0; overflow:hidden; opacity:0; mso-hide:all;">
+      Confirma tu correo y empieza a inscribirte en tus próximas carreras.
+      &#8199;&#65279;&#847; &#8199;&#65279;&#847; &#8199;&#65279;&#847; &#8199;&#65279;&#847; &#8199;&#65279;&#847; &#8199;&#65279;&#847; &#8199;&#65279;&#847; &#8199;&#65279;&#847; 
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#07080a" style="background-color:#07080a;">
+      <tr>
+        <td align="center" style="padding:32px 12px;">
+
+          <table role="presentation" class="contenedor" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px; background-color:#0e1116; border-radius:14px; overflow:hidden;">
+
+            <tr>
+              <td align="center" bgcolor="#0e1116" style="background-color:#0e1116; padding:30px 24px 24px;">
+                <img class="logo" src="{{ .SiteURL }}/logo-correo.png" width="240" alt="RunTicket HN" style="display:block; width:240px; max-width:70%; height:auto; border:0; outline:none; text-decoration:none;" />
+              </td>
+            </tr>
+
+            <!-- Franja de marca: da color aunque el cliente bloquee la imagen. -->
+            <tr>
+              <td height="4" bgcolor="#ff6a1a" style="background-color:#ff6a1a; height:4px; line-height:4px; font-size:0;">&nbsp;</td>
+            </tr>
+
+            <tr>
+              <td class="relleno" style="padding:38px 36px 0;">
+                <h1 class="titulo" style="margin:0 0 20px; font-family:'Trebuchet MS', 'Segoe UI', Arial, sans-serif; font-size:30px; line-height:1.15; font-weight:bold; font-style:italic; color:#f3f4f6;">
+                  ¡Ya casi estás en la meta!
+                </h1>
+                <p style="margin:0 0 16px; font-family:'Segoe UI', Arial, sans-serif; font-size:16px; line-height:1.6; color:#f3f4f6;">
+                  Hola, corredor:
+                </p>
+                <p style="margin:0 0 28px; font-family:'Segoe UI', Arial, sans-serif; font-size:16px; line-height:1.6; color:rgba(243,244,246,0.72);">
+                  Gracias por registrarte en RunTicket HN. Para activar tu cuenta y comenzar a inscribirte en tus próximas carreras, confirma tu correo electrónico haciendo clic en el siguiente botón.
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="relleno" align="center" style="padding:0 36px 28px;">
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td align="center" bgcolor="#ff6a1a" style="background-color:#ff6a1a; border-radius:999px;">
+                      <a href="{{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=signup&next=/bienvenida"
+                         style="display:inline-block; padding:16px 40px; font-family:'Segoe UI', Arial, sans-serif; font-size:16px; font-weight:bold; line-height:1; color:#0b0500; text-decoration:none; border-radius:999px;">
+                        Confirmar mi correo
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Respaldo: hay clientes y filtros corporativos que desactivan los
+                 botones, y sin esto el correo se queda sin salida. -->
+            <tr>
+              <td class="relleno" style="padding:0 36px 28px;">
+                <p style="margin:0 0 8px; font-family:'Segoe UI', Arial, sans-serif; font-size:13px; line-height:1.5; color:rgba(243,244,246,0.42);">
+                  ¿No funciona el botón? Copia y pega esta dirección en tu navegador:
+                </p>
+                <p style="margin:0; font-family:'Courier New', monospace; font-size:12px; line-height:1.5; color:#ff8a45; word-break:break-all;">
+                  {{ .SiteURL }}/auth/confirmar?token_hash={{ .TokenHash }}&type=signup&next=/bienvenida
+                </p>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="relleno" style="padding:0 36px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr><td height="1" bgcolor="#232936" style="background-color:#232936; height:1px; line-height:1px; font-size:0;">&nbsp;</td></tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td class="relleno" style="padding:24px 36px 34px;">
+                <p style="margin:0 0 20px; font-family:'Segoe UI', Arial, sans-serif; font-size:13px; line-height:1.6; color:rgba(243,244,246,0.42);">
+                  Si no creaste esta cuenta, puedes ignorar este mensaje.
+                </p>
+                <p style="margin:0; font-family:'Segoe UI', Arial, sans-serif; font-size:15px; line-height:1.6; color:#f3f4f6;">
+                  Nos vemos en la próxima meta.<br />
+                  <strong style="color:#ff8a45;">Equipo RunTicket HN</strong>
+                </p>
+              </td>
+            </tr>
+          </table>
+
+          <table role="presentation" class="contenedor" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
+            <tr>
+              <td align="center" style="padding:22px 24px 8px;">
+                <p style="margin:0; font-family:'Segoe UI', Arial, sans-serif; font-size:12px; line-height:1.6; color:rgba(243,244,246,0.42);">
+                  RunTicket HN — Inscripciones para corredores y eventos deportivos.
+                </p>
+              </td>
+            </tr>
+          </table>
+
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
