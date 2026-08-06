@@ -231,6 +231,7 @@ export function navPortal(contadores?: {
           icono: "eventos",
           contador: contadores?.inscripciones,
         },
+        { href: "/portal/acompanantes", etiqueta: "Mis acompañantes", icono: "usuarios" },
         { href: "/portal/certificados", etiqueta: "Certificados", icono: "resultados" },
         {
           href: "/portal/notificaciones",

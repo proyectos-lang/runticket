@@ -175,6 +175,28 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["empresas"]["Insert"]>;
         Relationships: [];
       };
+      /**
+       * Personas que un corredor inscribe sin que ellas creen cuenta (migración
+       * 0026). Sus datos viven en `perfiles`, como los de cualquier corredor.
+       */
+      acompanantes: {
+        Row: {
+          id: string;
+          titular_id: string;
+          usuario_id: string;
+          parentesco: "hijo" | "pareja" | "familiar" | "otro";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          titular_id: string;
+          usuario_id: string;
+          parentesco?: "hijo" | "pareja" | "familiar" | "otro";
+        };
+        Update: Partial<Database["public"]["Tables"]["acompanantes"]["Insert"]>;
+        Relationships: [];
+      };
       perfiles: {
         Row: {
           id: string;
@@ -982,6 +1004,31 @@ export interface Database {
           p_tutor_nombre?: string | null;
           p_tutor_documento?: string | null;
           p_codigo_cupon?: string | null;
+          /** Une la inscripción a un grupo, para que un pago cubra a toda la familia. */
+          p_grupo_id?: string | null;
+        };
+        Returns: string;
+      };
+      /**
+       * Inscribe a un acompañante del usuario en sesión. Comparte con
+       * `inscribirse_en_evento` las reglas de cupo, edad, inventario y precio;
+       * solo cambia de quién es la inscripción.
+       */
+      inscribir_acompanante: {
+        Args: {
+          p_categoria_id: string;
+          p_acompanante_id: string;
+          p_declaracion_id: string;
+          p_talla?: string | null;
+          p_datos_adicionales?: Record<string, unknown>;
+          p_firma_imagen_url?: string | null;
+          p_acepto?: boolean;
+          p_ip?: string | null;
+          p_dispositivo?: string | null;
+          p_tutor_nombre?: string | null;
+          p_tutor_documento?: string | null;
+          p_codigo_cupon?: string | null;
+          p_grupo_id?: string | null;
         };
         Returns: string;
       };
