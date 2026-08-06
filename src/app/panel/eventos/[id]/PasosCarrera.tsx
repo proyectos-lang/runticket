@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { PASOS_CONFIGURACION } from "@/components/shell/navegacion";
-import { claseBoton } from "@/components/ui/Boton";
+import { claseBoton } from "@/components/ui/estilosBoton";
 
 /**
  * Asistente para configurar una carrera.

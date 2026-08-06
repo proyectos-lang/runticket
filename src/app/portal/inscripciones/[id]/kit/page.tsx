@@ -9,7 +9,7 @@ import { PantallaDespierta } from "@/components/portal/PantallaDespierta";
 import { CompartirRetiro } from "@/components/portal/CompartirRetiro";
 import { ChipHorario, horarioEsHoy } from "@/components/portal/ChipHorario";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
-import { claseBoton } from "@/components/ui/Boton";
+import { claseBoton } from "@/components/ui/estilosBoton";
 
 export const dynamic = "force-dynamic";
 

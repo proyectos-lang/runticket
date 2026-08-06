@@ -2,55 +2,23 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import {
+  BASE,
+  TAMANOS,
+  VARIANTES,
+  type TamanoBoton,
+  type VarianteBoton,
+} from "./estilosBoton";
 
-export type VarianteBoton = "primaria" | "secundaria" | "fantasma" | "peligro";
-export type TamanoBoton = "sm" | "md" | "lg";
-
-/**
- * La primaria va en versalitas y peso 800: en el diseño aprobado la acción se
- * grita («INSCRIBIRME AHORA», «PAGAR L 503.00»). Las demás variantes acompañan
- * y se quedan en caja baja, que es lo que las hace secundarias.
- */
-const VARIANTES: Record<VarianteBoton, string> = {
-  primaria: "bg-naranja font-extrabold uppercase tracking-wide text-tinta hover:bg-naranja-suave",
-  secundaria: "border border-linea-fuerte bg-superficie font-medium text-texto hover:border-texto/25",
-  fantasma: "font-medium text-atenuado hover:bg-superficie-2 hover:text-texto",
-  peligro: "border border-red-500/35 font-medium text-red-300 hover:bg-red-500/10",
-};
+export type { VarianteBoton, TamanoBoton };
 
 /**
- * `h-11` son los 44px de área táctil que pide el diseño. Sube el ritmo vertical
- * respecto a los ~38px de antes, así que los formularios largos se leen más
- * espaciados: es intencionado.
+ * `claseBoton` **ya no se exporta desde aquí**: vive en `./estilosBoton`, que no
+ * es un módulo de cliente. Exportarla desde este archivo la convertía en una
+ * referencia al cliente, y llamarla desde un componente de servidor lanzaba
+ * «Attempted to call claseBoton() from the server» al renderizar, sin que el
+ * build dijera nada.
  */
-const TAMANOS: Record<TamanoBoton, string> = {
-  sm: "h-9 px-3.5 text-xs",
-  md: "h-11 px-5 text-sm",
-  lg: "h-13 px-8 text-sm",
-};
-
-/* Radio de 6px: la píldora se reserva a chips y filtros. */
-const BASE =
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md transition-colors " +
-  "disabled:cursor-not-allowed disabled:opacity-55";
-
-/**
- * Las mismas clases para un `<a>` corriente.
- *
- * Existe para los enlaces externos —el `wa.me` del organizador— que no pasan por
- * `next/link` y que, sin esto, acababan copiando la cadena a mano y separándose
- * del componente en cuanto alguien tocaba una.
- *
- * No dispara el aviso de la regla de oro: un enlace externo no es la acción de
- * la pantalla, es una salida de ella.
- */
-export function claseBoton(
-  variante: VarianteBoton = "secundaria",
-  tamano: TamanoBoton = "md",
-  extra = ""
-) {
-  return `${BASE} ${VARIANTES[variante]} ${TAMANOS[tamano]} ${extra}`.trim();
-}
 
 /* --------------------------------------------------------------------------
  * Regla de oro: un solo botón naranja por pantalla.

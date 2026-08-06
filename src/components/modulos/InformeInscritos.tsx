@@ -6,7 +6,7 @@ import { formatPrecio, formatFechaCorta } from "@/lib/format";
 import { ESTADO_PAGO_LABEL, ESTADO_PAGO_TONO } from "@/lib/pagos";
 import { Chip } from "@/components/ui/Chip";
 import { Aviso } from "@/components/ui/Aviso";
-import { claseBoton } from "@/components/ui/Boton";
+import { claseBoton } from "@/components/ui/estilosBoton";
 import { FiltrosInscritos } from "./FiltrosInscritos";
 import { ResumenInscritos } from "./ResumenInscritos";
 import { AccionesInscrito } from "@/app/panel/eventos/[id]/inscritos/AccionesInscrito";

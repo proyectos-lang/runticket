@@ -7,7 +7,8 @@ import { formatTiempo, formatRitmo, formatFechaMono, distanciaSiAporta } from "@
 import { segundosDeIntervalo, trayectoriaDelCorredor } from "@/lib/portal/trayectoria";
 import { BarraPercentil, percentilDe } from "@/components/portal/Historial";
 import { PlaceholderMedia } from "@/components/ui/Datos";
-import { BotonEnlace, claseBoton } from "@/components/ui/Boton";
+import { BotonEnlace } from "@/components/ui/Boton";
+import { claseBoton } from "@/components/ui/estilosBoton";
 import { Chip } from "@/components/ui/Chip";
 
 export const dynamic = "force-dynamic";
