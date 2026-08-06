@@ -42,6 +42,10 @@ export type CarreraDelCorredor = {
    * organizador haya cerrado el evento.
    */
   tieneCertificado: boolean;
+  /** False cuando la carrera es de un acompañante y no del titular. */
+  esPropia: boolean;
+  /** Nombre de quien corre; solo se muestra cuando no es el titular. */
+  participante: string | null;
   clase: ClaseCarrera;
 };
 
@@ -89,15 +93,33 @@ const VACIA: Trayectoria = {
 export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayectoria> {
   const supabase = await createClient();
 
+  /**
+   * También las de los acompañantes: quien inscribe a su hijo necesita ver su
+   * dorsal y su código de retiro desde aquí, porque esa persona no tiene cuenta
+   * con la que entrar. La RLS de la migración 0026 es la que lo permite.
+   */
+  const { data: relaciones } = await supabase
+    .from("acompanantes")
+    .select("usuario_id")
+    .eq("titular_id", corredorId);
+
+  const idsAcompanantes = (relaciones ?? []).map((r) => r.usuario_id);
+  const participantes = [corredorId, ...idsAcompanantes];
+
   const { data: inscripciones } = await supabase
     .from("inscripciones")
     .select(
-      "id, evento_id, categoria_id, talla, numero_dorsal, codigo_qr, precio_pagado, moneda, estado, kit_entregado, kit_entregado_en, datos_adicionales, created_at"
+      "id, evento_id, categoria_id, talla, numero_dorsal, codigo_qr, precio_pagado, moneda, estado, kit_entregado, kit_entregado_en, datos_adicionales, created_at, corredor_id"
     )
-    .eq("corredor_id", corredorId)
+    .in("corredor_id", participantes)
     .order("created_at", { ascending: false });
 
   if (!inscripciones?.length) return VACIA;
+
+  // Nombres de los acompañantes, para poder rotular cada tarjeta.
+  const { data: perfilesAcompanantes } = idsAcompanantes.length
+    ? await supabase.from("perfiles").select("id, nombres, apellidos").in("id", idsAcompanantes)
+    : { data: [] as { id: string; nombres: string | null; apellidos: string | null }[] };
 
   const ids = inscripciones.map((i) => i.id);
   const eventoIds = [...new Set(inscripciones.map((i) => i.evento_id))];
@@ -175,6 +197,14 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
         tiempo: resultado?.tiempo_oficial ?? null,
         puesto: resultado?.posicion_general ?? null,
         participantes: participantesPorEvento.get(i.evento_id) ?? null,
+        esPropia: i.corredor_id === corredorId,
+        participante:
+          i.corredor_id === corredorId
+            ? null
+            : (() => {
+                const p = perfilesAcompanantes?.find((x) => x.id === i.corredor_id);
+                return [p?.nombres, p?.apellidos].filter(Boolean).join(" ") || "Acompañante";
+              })(),
         esRecord: false,
         // Mismo criterio exacto que aplica el endpoint del PDF: evento cerrado
         // por el organizador e inscripción activa. Antes esto salía de la tabla
@@ -189,8 +219,12 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
 
   // Récord personal por distancia: la marca más rápida de cada una, no la más
   // reciente. Es lo que un corredor entiende por «marca».
+  //
+  // Solo cuentan las suyas: si entraran las de sus acompañantes, el tiempo de su
+  // hijo en los 5K aparecería como su propia marca personal.
   const mejorPorDistancia = new Map<number, { id: string; segundos: number }>();
   for (const c of carreras) {
+    if (!c.esPropia) continue;
     if (c.clase !== "finalizada") continue;
     const s = segundosDeIntervalo(c.tiempo);
     if (s === null || c.distanciaKm === null) continue;
@@ -203,14 +237,16 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
   for (const c of carreras) c.esRecord = idsRecord.has(c.inscripcionId);
 
   const finalizadas = carreras.filter((c) => c.clase === "finalizada");
+  // Las métricas de la cabecera son del titular, no de la familia.
+  const propiasFinalizadas = finalizadas.filter((c) => c.esPropia);
 
   // Los kilómetros solo suman las carreras con distancia declarada: una
   // categoría sin distancia no puede inventarse una.
-  const kmTotales = finalizadas.reduce((a, c) => a + (c.distanciaKm ?? 0), 0);
+  const kmTotales = propiasFinalizadas.reduce((a, c) => a + (c.distanciaKm ?? 0), 0);
 
   let mejor: Trayectoria["metricas"]["mejor"] = null;
   let mejorSegundos = Infinity;
-  for (const c of finalizadas) {
+  for (const c of propiasFinalizadas) {
     const s = segundosDeIntervalo(c.tiempo);
     if (s !== null && s < mejorSegundos) {
       mejorSegundos = s;
@@ -220,19 +256,20 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
 
   // El club no está en el perfil: se declara en cada inscripción. Vale el de la
   // más reciente que lo traiga.
+  const propias = inscripciones.filter((i) => i.corredor_id === corredorId);
   const club =
-    inscripciones
+    propias
       .map((i) => (i.datos_adicionales as { club?: string | null } | null)?.club)
       .find((c) => typeof c === "string" && c.trim()) ?? null;
 
-  const primera = inscripciones.at(-1);
+  const primera = propias.at(-1);
 
   return {
     carreras,
     proximas: carreras.filter((c) => c.clase === "proxima").reverse(),
     finalizadas,
     canceladas: carreras.filter((c) => c.clase === "cancelada"),
-    metricas: { carreras: finalizadas.length, kmTotales, mejor },
+    metricas: { carreras: propiasFinalizadas.length, kmTotales, mejor },
     club,
     desdeAnio: primera ? new Date(primera.created_at).getFullYear() : null,
   };

@@ -6,6 +6,7 @@ import { categoriasConCupo } from "@/lib/eventos/consultas";
 import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { perfilCompleto } from "@/lib/validacion/perfil";
 import { edadEnFecha } from "@/lib/format";
+import type { AcompananteInscribible } from "./AcompanantesInscripcion";
 import { InscripcionForm, type CategoriaElegible } from "./InscripcionForm";
 import { ListaEsperaForm } from "./ListaEsperaForm";
 
@@ -79,6 +80,78 @@ export default async function InscripcionPage({
 
   const hayElegibles = categoriasElegibles.some((c) => c.elegible);
 
+  /**
+   * Acompañantes del corredor, con las categorías que le tocan a cada uno.
+   *
+   * La elegibilidad se calcula por persona porque cada una corre lo suyo: el
+   * hijo de ocho años no puede entrar en la 21K aunque el padre sí. Es el mismo
+   * criterio que aplica la función SQL, aquí adelantado para que el formulario
+   * no ofrezca lo que la base va a rechazar.
+   */
+  const { data: relaciones } = await supabase
+    .from("acompanantes")
+    .select("id, usuario_id, parentesco")
+    .eq("titular_id", user.id)
+    .order("created_at");
+
+  const idsAcompanantes = (relaciones ?? []).map((r) => r.usuario_id);
+  const [{ data: perfilesAcompanantes }, { data: yaInscritos }] = await Promise.all([
+    idsAcompanantes.length
+      ? supabase
+          .from("perfiles")
+          .select("id, nombres, apellidos, fecha_nacimiento, talla_predeterminada")
+          .in("id", idsAcompanantes)
+      : Promise.resolve({ data: [] as never[] }),
+    idsAcompanantes.length
+      ? supabase
+          .from("inscripciones")
+          .select("corredor_id")
+          .eq("evento_id", evento.id)
+          .eq("estado", "activa")
+          .in("corredor_id", idsAcompanantes)
+      : Promise.resolve({ data: [] as never[] }),
+  ]);
+
+  const ETIQUETA_PARENTESCO: Record<string, string> = {
+    hijo: "Hijo o hija",
+    pareja: "Pareja",
+    familiar: "Familiar",
+    otro: "Acompañante",
+  };
+
+  const acompanantes: AcompananteInscribible[] = (relaciones ?? []).map((r) => {
+    const p = perfilesAcompanantes?.find((x) => x.id === r.usuario_id);
+    const edadSuya = p?.fecha_nacimiento
+      ? edadEnFecha(p.fecha_nacimiento, evento.fecha_inicio)
+      : null;
+
+    return {
+      id: r.id,
+      nombre: [p?.nombres, p?.apellidos].filter(Boolean).join(" ") || "Sin nombre",
+      parentesco: ETIQUETA_PARENTESCO[r.parentesco] ?? "Acompañante",
+      edad: edadSuya,
+      tallaSugerida: p?.talla_predeterminada ?? null,
+      yaInscrito: (yaInscritos ?? []).some((i) => i.corredor_id === r.usuario_id),
+      categorias: categorias.map((c) => {
+        let motivo: string | null = null;
+        if (edadSuya === null) motivo = "Falta su fecha de nacimiento";
+        else if (c.cupos_disponibles !== null && c.cupos_disponibles <= 0) motivo = "Cupo agotado";
+        else if (c.edad_minima !== null && edadSuya < c.edad_minima)
+          motivo = `Solo desde ${c.edad_minima} años`;
+        else if (c.edad_maxima !== null && edadSuya > c.edad_maxima)
+          motivo = `Solo hasta ${c.edad_maxima} años`;
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          distancia_km: c.distancia_km,
+          precio_vigente: Number(c.precio_vigente),
+          elegible: motivo === null,
+          motivo,
+        };
+      }),
+    };
+  });
+
   // Para no ofrecer apuntarse dos veces a la misma cola.
   const { data: enEspera } = hayElegibles
     ? { data: [] as { categoria_id: string }[] }
@@ -111,6 +184,7 @@ export default async function InscripcionPage({
             moneda={evento.moneda}
             declaracion={declaracion}
             esMenor={edad < 18}
+            acompanantes={acompanantes}
             perfil={{
               nombres: perfil.nombres ?? "",
               apellidos: perfil.apellidos ?? "",

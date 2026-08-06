@@ -7,6 +7,7 @@ export function Select({
   required = false,
   errors,
   defaultValue,
+  value,
   placeholder = "Selecciona…",
   ayuda,
   className = "",
@@ -18,6 +19,11 @@ export function Select({
   required?: boolean;
   errors?: string[];
   defaultValue?: string;
+  /**
+   * Vuelve el desplegable controlado, para las pantallas que derivan su valor
+   * del estado. Exige `onChange`; sin él quedaría de solo lectura de hecho.
+   */
+  value?: string;
   placeholder?: string;
   ayuda?: string;
   className?: string;
@@ -33,7 +39,9 @@ export function Select({
         id={name}
         name={name}
         required={required}
-        defaultValue={defaultValue ?? ""}
+        // `value` manda si viene; si no, sigue siendo no controlado.
+        value={value}
+        defaultValue={value === undefined ? (defaultValue ?? "") : undefined}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         className={CLASE_CAMPO}
       >

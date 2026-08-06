@@ -176,6 +176,31 @@ export interface Database {
         Relationships: [];
       };
       /**
+       * Une varias inscripciones bajo un solo pago. Existe desde 0005 y estuvo
+       * sin usar hasta que los acompañantes le dieron sentido: `pagos` ya sabe
+       * colgar de un grupo y `actualizar_estado_pago` reparte el dorsal a todas
+       * sus inscripciones al confirmarse el cobro.
+       */
+      grupos_inscripcion: {
+        Row: {
+          id: string;
+          empresa_id: string;
+          evento_id: string;
+          pagador_id: string;
+          created_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          empresa_id: string;
+          evento_id: string;
+          pagador_id: string;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["grupos_inscripcion"]["Insert"]>;
+        Relationships: [];
+      };
+      /**
        * Personas que un corredor inscribe sin que ellas creen cuenta (migración
        * 0026). Sus datos viven en `perfiles`, como los de cualquier corredor.
        */

@@ -1,6 +1,10 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
+import {
+  AcompanantesInscripcion,
+  type AcompananteInscribible,
+} from "./AcompanantesInscripcion";
 import Link from "next/link";
 import { FirmaCanvas } from "@/components/forms/FirmaCanvas";
 import { Boton } from "@/components/ui/Boton";
@@ -29,6 +33,7 @@ export function InscripcionForm({
   moneda,
   declaracion,
   esMenor,
+  acompanantes,
   perfil,
   categoriaInicial,
 }: {
@@ -38,6 +43,7 @@ export function InscripcionForm({
   moneda: string;
   declaracion: { version: number; contenido: string };
   esMenor: boolean;
+  acompanantes: AcompananteInscribible[];
   perfil: { nombres: string; apellidos: string; correo: string; tallaPredeterminada: string | null };
   /** Preselección que llega del selector de distancia de la ficha del evento. */
   categoriaInicial?: string;
@@ -127,6 +133,14 @@ export function InscripcionForm({
         {state.errors?.categoriaId?.[0] && (
           <p className="text-sm text-red-300">{state.errors.categoriaId[0]}</p>
         )}
+
+        {/* Va aquí y no en un paso propio: quien corre en familia decide a la
+            vez qué corre cada uno, y separarlo obligaría a volver atrás. */}
+        <AcompanantesInscripcion
+          acompanantes={acompanantes}
+          moneda={moneda}
+          tallas={tallas}
+        />
       </section>
 
       <section className={`flex flex-col gap-5 ${pasoVisible === 1 ? "" : "hidden"}`}>

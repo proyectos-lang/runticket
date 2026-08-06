@@ -91,9 +91,67 @@ export async function inscribirse(
 
   const declaracion = await obtenerDeclaracionVigente(evento.empresa_id, evento.id);
 
+  // Quien firma la declaración de los acompañantes es el titular, y su nombre y
+  // documento tienen que constar en el documento.
+  const { data: perfilTitular } = await supabase
+    .from("perfiles")
+    .select("nombres, apellidos, documento_identidad")
+    .eq("id", user.id)
+    .maybeSingle();
+
   const cabeceras = await headers();
   const ip = cabeceras.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
   const dispositivo = cabeceras.get("user-agent");
+
+  /**
+   * Acompañantes elegidos. Viajan en un solo campo con JSON porque la lista es
+   * dinámica; se valida aquí antes de tocar nada.
+   */
+  const acompanantes = (() => {
+    const crudo = formData.get("acompanantes");
+    if (typeof crudo !== "string" || !crudo.trim()) return [];
+    try {
+      return z
+        .array(
+          z.object({
+            id: z.uuid(),
+            categoriaId: z.uuid("Falta elegir la distancia de un acompañante."),
+            talla: z.string().trim().max(20).nullable().optional(),
+          })
+        )
+        .max(10, "Como mucho diez acompañantes por inscripción.")
+        .parse(JSON.parse(crudo));
+    } catch {
+      return null;
+    }
+  })();
+  if (acompanantes === null) {
+    return { status: "error", message: "Revisa la distancia de cada acompañante." };
+  }
+
+  /**
+   * Con acompañantes, todas las inscripciones cuelgan de un grupo para que **un
+   * solo pago** las cubra: `actualizar_estado_pago` reparte el dorsal a todo el
+   * grupo cuando el organizador lo confirma. Sin grupo, la familia tendría que
+   * mandar un comprobante por persona.
+   */
+  let grupoId: string | null = null;
+  if (acompanantes.length > 0) {
+    const { data: grupo, error: errorGrupo } = await supabase
+      .from("grupos_inscripcion")
+      .insert({ empresa_id: evento.empresa_id, evento_id: evento.id, pagador_id: user.id })
+      .select("id")
+      .single();
+    if (errorGrupo || !grupo) {
+      return {
+        status: "error",
+        message: /schema cache|acompanantes|grupos_inscripcion/i.test(errorGrupo?.message ?? "")
+          ? "Inscribir acompañantes todavía no está habilitado en la base de datos (falta la migración 0026)."
+          : "No se pudo preparar la inscripción en grupo: " + (errorGrupo?.message ?? ""),
+      };
+    }
+    grupoId = grupo.id;
+  }
 
   // Toda la parte crítica (cupo, inventario de talla, inscripción y firma) ocurre
   // dentro de una única transacción en la base de datos.
@@ -115,6 +173,7 @@ export async function inscribirse(
     // El código viaja tal cual: el descuento lo calcula la base de datos, que es
     // la única que puede fijar el precio de forma confiable.
     p_codigo_cupon: d.codigoCupon || null,
+    p_grupo_id: grupoId,
   });
 
   if (error || !inscripcionId) {
@@ -151,7 +210,63 @@ export async function inscribirse(
     datosNuevos: { categoria_id: d.categoriaId, talla: d.talla || null, origen: "portal" },
   });
 
+  /**
+   * Los acompañantes van después y **de uno en uno**: cada inscripción es su
+   * propia transacción, así que si al tercero se le agota el cupo los dos
+   * primeros siguen valiendo. Se recogen los fallos para decir exactamente quién
+   * no entró, en vez de tumbar la inscripción entera o callarlo.
+   *
+   * El cupón no se repite: ya lo consumió la inscripción del titular, y volver a
+   * pasarlo gastaría un uso por cada acompañante.
+   */
+  const fallidos: string[] = [];
+  for (const a of acompanantes) {
+    const { data: idAcompanante, error: errorAcompanante } = await supabase.rpc(
+      "inscribir_acompanante",
+      {
+        p_categoria_id: a.categoriaId,
+        p_acompanante_id: a.id,
+        p_declaracion_id: declaracion.id,
+        p_talla: a.talla || null,
+        p_datos_adicionales: { inscrito_por_titular: true },
+        p_firma_imagen_url: null,
+        p_acepto: true,
+        p_ip: ip,
+        p_dispositivo: dispositivo,
+        // Quien firma por ellos es el titular, y así queda en el documento.
+        p_tutor_nombre: `${perfilTitular?.nombres ?? ""} ${perfilTitular?.apellidos ?? ""}`.trim() || null,
+        p_tutor_documento: perfilTitular?.documento_identidad ?? null,
+        p_codigo_cupon: null,
+        p_grupo_id: grupoId,
+      }
+    );
+
+    if (errorAcompanante || !idAcompanante) {
+      fallidos.push(mensajeDeError(errorAcompanante?.message ?? "no se pudo inscribir"));
+      continue;
+    }
+
+    await auditar({
+      accion: "inscripcion.crear",
+      entidad: "inscripciones",
+      entidadId: idAcompanante,
+      empresaId: evento.empresa_id,
+      datosNuevos: { categoria_id: a.categoriaId, talla: a.talla || null, origen: "acompanante" },
+    });
+  }
+
   revalidatePath(`/eventos/${slug}`);
+
+  if (fallidos.length > 0) {
+    // La del titular sí quedó: mandarlo a su ficha y contarle qué falló es más
+    // útil que un error que sugiera que no se inscribió nadie.
+    redirect(
+      `/portal/inscripciones/${inscripcionId}?nueva=1&aviso=${encodeURIComponent(
+        `Tu inscripción quedó lista, pero ${fallidos.length} acompañante(s) no: ${fallidos.join(" ")}`
+      )}`
+    );
+  }
+
   redirect(`/portal/inscripciones/${inscripcionId}?nueva=1`);
 }
 

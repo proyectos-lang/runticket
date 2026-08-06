@@ -184,9 +184,19 @@ export function FilaProxima({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-bold text-texto">
-          {carrera.evento}
-          {carrera.categoria && ` ${carrera.categoria}`}
+        <p className="flex flex-wrap items-center gap-2 truncate text-sm font-bold text-texto">
+          <span className="truncate">
+            {carrera.evento}
+            {carrera.categoria && ` ${carrera.categoria}`}
+          </span>
+          {/* Solo cuando corre otra persona: en las propias sería ruido, y sin
+              esto no habría forma de saber cuál de las tres inscripciones de la
+              familia es la de cada quien. */}
+          {carrera.participante && (
+            <span className="shrink-0 rounded-full border border-azul/36 bg-azul/14 px-2 py-0.5 font-mono text-[0.5625rem] font-bold uppercase tracking-etiqueta text-azul-texto">
+              {carrera.participante.split(" ")[0]}
+            </span>
+          )}
         </p>
         <p
           className={`tabular truncate font-mono text-[0.65625rem] uppercase tracking-etiqueta ${pago.clase}`}
