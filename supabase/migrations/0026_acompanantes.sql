@@ -24,9 +24,12 @@ create table if not exists public.acompanantes (
   id           uuid primary key default gen_random_uuid(),
   -- Quien lo da de alta y responde por él.
   titular_id   uuid not null references auth.users(id) on delete cascade,
-  -- La cuenta silenciosa del acompañante. Sin `on delete cascade`: si algún día
-  -- esa persona reclama su cuenta y se borra la relación, sus inscripciones y
-  -- sus resultados siguen siendo suyos.
+  -- La cuenta silenciosa del acompañante. En cascada porque si esa cuenta
+  -- desaparece, esta relación no apunta ya a nadie.
+  --
+  -- Ojo con la asimetría: borrar la **relación** (quitarlo de la lista) no toca
+  -- sus inscripciones ni sus resultados, que siguen siendo suyos. Eso lo hace la
+  -- acción del portal, no esta clave.
   usuario_id   uuid not null references auth.users(id) on delete cascade,
   parentesco   text not null default 'otro'
                  check (parentesco in ('hijo','pareja','familiar','otro')),
