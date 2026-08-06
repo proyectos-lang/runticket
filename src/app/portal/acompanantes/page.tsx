@@ -19,11 +19,16 @@ export default async function AcompanantesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/portal/acompanantes");
 
-  const { data: relaciones } = await supabase
+  const { data: relaciones, error: errorRelaciones } = await supabase
     .from("acompanantes")
     .select("id, usuario_id, parentesco")
     .eq("titular_id", user.id)
     .order("created_at");
+
+  // Sin la migración 0026 la tabla no existe y la consulta falla. Sin este aviso
+  // la pantalla se vería vacía, como si no hubiera acompañantes, y el problema
+  // solo aparecería al intentar añadir uno.
+  const faltaMigracion = !!errorRelaciones;
 
   const ids = (relaciones ?? []).map((r) => r.usuario_id);
 
@@ -75,13 +80,20 @@ export default async function AcompanantesPage() {
         </p>
       </div>
 
-      <Aviso tono="azul" titulo="No necesitan cuenta">
-        Nadie de esta lista recibe correos ni tiene que registrarse: tú gestionas su inscripción,
-        su dorsal y su kit. Al inscribirlos firmas su declaración de salud como responsable, y así
-        queda registrado.
-      </Aviso>
+      {faltaMigracion ? (
+        <Aviso tono="ambar" titulo="Función no habilitada todavía">
+          Falta ejecutar la migración <code>0026_acompanantes.sql</code> en la base de datos.
+          Hasta entonces esta pantalla no puede guardar nada.
+        </Aviso>
+      ) : (
+        <Aviso tono="azul" titulo="No necesitan cuenta">
+          Nadie de esta lista recibe correos ni tiene que registrarse: tú gestionas su inscripción,
+          su dorsal y su kit. Al inscribirlos firmas su declaración de salud como responsable, y
+          así queda registrado.
+        </Aviso>
+      )}
 
-      <GestorAcompanantes acompanantes={lista} />
+      {!faltaMigracion && <GestorAcompanantes acompanantes={lista} />}
     </div>
   );
 }

@@ -103,6 +103,15 @@ export async function guardarAcompanante(
     }
   }
 
+  /**
+   * El alta son tres pasos que no comparten transacción: crear la cuenta,
+   * rellenar su perfil y asociarla. Si el último falla y no se deshace el
+   * primero, queda una cuenta suelta que nadie gestiona y que además reserva su
+   * correo para siempre; cada reintento dejaría otra. Por eso se recuerda si la
+   * cuenta la creamos aquí, para poder borrarla.
+   */
+  let creadaAqui = false;
+
   if (!usuarioId) {
     const { data: creado, error } = await admin.auth.admin.createUser({
       // Sin correo real se usa una dirección interna no enrutable: `createUser`
@@ -118,11 +127,17 @@ export async function guardarAcompanante(
       };
     }
     usuarioId = creado.user.id;
+    creadaAqui = true;
   }
+
+  const deshacer = async (mensaje: string): Promise<AcompananteState> => {
+    if (creadaAqui && usuarioId) await admin.auth.admin.deleteUser(usuarioId);
+    return { status: "error", message: mensaje };
+  };
 
   const { error: errorPerfil } = await admin.from("perfiles").update(aPerfil(d)).eq("id", usuarioId);
   if (errorPerfil) {
-    return { status: "error", message: "No se pudieron guardar sus datos: " + errorPerfil.message };
+    return deshacer("No se pudieron guardar sus datos: " + errorPerfil.message);
   }
 
   const { error: errorRelacion } = await admin
@@ -132,7 +147,14 @@ export async function guardarAcompanante(
       { onConflict: "titular_id,usuario_id" }
     );
   if (errorRelacion) {
-    return { status: "error", message: "No se pudo asociar: " + errorRelacion.message };
+    // PGRST205: la tabla no existe todavía. El mensaje crudo de PostgREST no le
+    // dice nada a quien usa el portal, así que se traduce a la causa real.
+    const faltaMigracion = /schema cache|acompanantes/i.test(errorRelacion.message);
+    return deshacer(
+      faltaMigracion
+        ? "Esta función todavía no está habilitada en la base de datos. Falta ejecutar la migración 0026."
+        : "No se pudo asociar: " + errorRelacion.message
+    );
   }
 
   revalidatePath("/portal/acompanantes");
