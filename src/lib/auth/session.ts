@@ -88,6 +88,24 @@ export async function getMembresiaDeEmpresa(empresaId: string): Promise<Membresi
 export const COOKIE_EMPRESA = "rt_empresa";
 
 /**
+ * Carrera sobre la que trabajan los módulos de primer nivel del panel.
+ *
+ * A diferencia de la empresa, esto **no es una credencial ni concede nada**: es
+ * una preferencia de interfaz para no tener que reelegir la carrera al pasar de
+ * Inscritos a Kits y a Métricas, que es como se trabaja el día de una carrera.
+ * Cada módulo sigue validando el valor contra las carreras reales de la empresa
+ * activa, así que una cookie manipulada, caducada o de otra empresa se descarta.
+ */
+export const COOKIE_EVENTO = "rt_evento";
+
+/**
+ * Centinela para «todas las carreras». Se usa una palabra y no la cadena vacía
+ * porque una cookie sin valor no se comporta igual en todos los navegadores y no
+ * podría distinguirse de «no hay cookie».
+ */
+export const EVENTO_TODAS = "todas";
+
+/**
  * Empresa sobre la que opera el panel. Sale de una cookie que solo escribe
  * `seleccionarEmpresaActiva`, y **siempre se valida contra las membresías reales**:
  * una cookie manipulada o una membresía revocada no deben dar acceso.

@@ -96,7 +96,7 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
           <h1 className="text-2xl font-semibold text-texto">Métricas</h1>
         </div>
         <a
-          href={`/panel/eventos/${evento.id}/inscritos/exportar.csv`}
+          href={`/panel/eventos/${evento.id}/inscritos/exportar.xlsx`}
           className="rounded-full border px-4 py-2 text-sm font-medium border-linea-fuerte text-atenuado hover:bg-superficie-2"
         >
           Exportar inscritos
