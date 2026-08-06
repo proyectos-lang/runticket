@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
+import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
 
 /** La RLS solo deja al dueño marcar las suyas. */
 export async function marcarLeida(notificacionId: string) {
@@ -13,7 +13,7 @@ export async function marcarLeida(notificacionId: string) {
     .eq("id", notificacionId);
   if (error) throw new Error("No se pudo marcar como leída: " + error.message);
 
-  revalidatePath("/portal/notificaciones");
+  revalidatePath("/panel/notificaciones");
 }
 
 export async function marcarTodasLeidas() {
@@ -23,14 +23,14 @@ export async function marcarTodasLeidas() {
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Solo las de corredor: si esta persona además administra una empresa, un
-  // botón del portal no debe darle por vistos los avisos de su panel.
+  // Solo las del panel: si esta persona además corre, sus avisos de corredor son
+  // suyos y no debe marcárselos como leídos un botón del panel.
   await supabase
     .from("notificaciones")
     .update({ leido: true, leido_en: new Date().toISOString() })
     .eq("usuario_id", user.id)
     .eq("leido", false)
-    .not("tipo", "in", TIPOS_DE_PANEL_SQL);
+    .in("tipo", [...TIPOS_DE_PANEL]);
 
-  revalidatePath("/portal/notificaciones");
+  revalidatePath("/panel/notificaciones");
 }

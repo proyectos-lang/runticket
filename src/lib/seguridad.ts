@@ -23,6 +23,9 @@ export const LIMITES = {
   login: { maximo: 10, ventanaSegundos: 900 },
   recuperarPassword: { maximo: 3, ventanaSegundos: 3600 },
   inscripcion: { maximo: 10, ventanaSegundos: 3600 },
+  // Cada alta de acompañante crea una cuenta de verdad en `auth.users`; sin
+  // freno, el formulario de inscripción sería una fábrica de usuarios.
+  acompanante: { maximo: 15, ventanaSegundos: 3600 },
   listaEspera: { maximo: 10, ventanaSegundos: 3600 },
   subidaComprobante: { maximo: 15, ventanaSegundos: 3600 },
   // `validar_cupon` está abierto a visitantes sin sesión: sin freno serviría de

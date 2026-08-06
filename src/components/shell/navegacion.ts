@@ -58,12 +58,22 @@ export function navAdmin(contadores?: { empresas?: number; usuarios?: number }):
  */
 export function navPanel(
   rol: RolEmpresa,
-  contadores?: { carreras?: number; enEspera?: number; porVerificar?: number }
+  contadores?: { carreras?: number; enEspera?: number; porVerificar?: number; avisos?: number }
 ): SeccionNav[] {
   const esAdmin = rol === "admin_empresa";
 
   const general: ItemNav[] = [
     { href: "/panel", etiqueta: "Resumen", icono: "resumen", exacto: true },
+    {
+      href: "/panel/notificaciones",
+      etiqueta: "Avisos",
+      icono: "notificaciones",
+      exacto: true,
+      // En naranja: una inscripción nueva sin ver es justo lo que el organizador
+      // no puede permitirse pasar por alto.
+      contador: contadores?.avisos,
+      urgente: true,
+    },
     // `exacto`: dentro de una carrera el resaltado lo lleva el grupo «Esta
     // carrera». Sin esto, `/panel/eventos/{id}/inscritos` marcaba a la vez
     // «Carreras» y el ítem correcto, y el menú decía dos cosas a la vez.

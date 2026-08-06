@@ -37,6 +37,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     "Dorsal",
     "Nombre",
     "Correo",
+    // Columna propia y no un correo inventado: en la lista de la mesa, saber de
+    // quién es acompañante un dorsal es lo que permite entregarle el kit.
+    "Acompañante de",
     "Teléfono",
     "Género",
     "Categoría",
@@ -50,6 +53,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     f.numeroDorsal ?? "",
     f.nombre,
     f.correo ?? "",
+    f.gestionadoPor?.nombre ?? "",
     f.telefono ?? "",
     f.sexo ?? "",
     f.categoria,

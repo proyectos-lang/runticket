@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getPerfilActual } from "@/lib/auth/session";
 import { cerrarSesion } from "@/lib/auth/actions";
+import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
 import { EncabezadoSeccion } from "@/components/portal/Historial";
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
@@ -65,7 +66,11 @@ export default async function CuentaPage() {
 
   const [{ count: sinLeer }, { count: inscripciones }, { count: certificados }] =
     await Promise.all([
-      supabase.from("notificaciones").select("id", { count: "exact", head: true }).eq("leido", false),
+      supabase
+        .from("notificaciones")
+        .select("id", { count: "exact", head: true })
+        .eq("leido", false)
+        .not("tipo", "in", TIPOS_DE_PANEL_SQL),
       supabase
         .from("inscripciones")
         .select("id", { count: "exact", head: true })

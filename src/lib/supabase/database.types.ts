@@ -732,6 +732,8 @@ export interface Database {
           leido: boolean;
           leido_en: string | null;
           enlace: string | null;
+          /** A qué se refiere el aviso (inscripción o grupo); evita duplicarlo. */
+          referencia_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -741,6 +743,7 @@ export interface Database {
           titulo: string;
           mensaje: string;
           enlace?: string | null;
+          referencia_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["notificaciones"]["Insert"]> & {
           leido?: boolean;
@@ -1056,6 +1059,24 @@ export interface Database {
           p_grupo_id?: string | null;
         };
         Returns: string;
+      };
+      /**
+       * Avisa de una inscripción recién hecha: acuse al corredor y aviso a cada
+       * miembro activo de la empresa. Recibe la operación completa (titular y
+       * acompañantes) para dejar un solo aviso por familia.
+       */
+      avisar_de_inscripcion: {
+        Args: { p_inscripcion_ids: string[] };
+        Returns: number;
+      };
+      /** Quién gestiona a cada acompañante inscrito en un evento de la empresa. */
+      gestores_de_inscritos: {
+        Args: { p_evento_id: string };
+        Returns: {
+          usuario_id: string;
+          titular_nombre: string | null;
+          titular_telefono: string | null;
+        }[];
       };
       transferir_inscripcion_firmada: {
         Args: {

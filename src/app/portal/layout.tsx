@@ -3,6 +3,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/shell/AppShell";
 import { navPortal } from "@/components/shell/navegacion";
+import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const usuario = await getUsuarioActual();
@@ -17,10 +18,14 @@ export default async function PortalLayout({ children }: { children: React.React
       .select("id", { count: "exact", head: true })
       .eq("corredor_id", usuario.id)
       .eq("estado", "activa"),
+    // Fuera los avisos de organizador: quien administra una empresa y además
+    // corre tiene las dos clases en la misma tabla, y en el portal solo le
+    // corresponden las suyas de corredor.
     supabase
       .from("notificaciones")
       .select("id", { count: "exact", head: true })
-      .eq("leido", false),
+      .eq("leido", false)
+      .not("tipo", "in", TIPOS_DE_PANEL_SQL),
   ]);
 
   return (

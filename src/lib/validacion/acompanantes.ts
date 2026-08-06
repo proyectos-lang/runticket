@@ -9,6 +9,13 @@ export const PARENTESCOS = [
   { valor: "otro", etiqueta: "Otra persona" },
 ] as const;
 
+/** Las mismas opciones que el resto de formularios, para no discrepar en las etiquetas. */
+export const SEXOS = [
+  { valor: "masculino", etiqueta: "Masculino" },
+  { valor: "femenino", etiqueta: "Femenino" },
+  { valor: "otro", etiqueta: "Otro" },
+] as const;
+
 /**
  * Alta de un acompañante.
  *

@@ -104,7 +104,16 @@ export default async function InscritosPage({
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-medium text-texto">{f.nombre}</p>
-                    <p className="text-xs text-atenuado">{f.correo}</p>
+                    {/* Un acompañante no tiene correo propio al que escribir:
+                        lo que el organizador necesita es a quién llamar. */}
+                    {f.gestionadoPor ? (
+                      <p className="text-xs text-cian">
+                        Acompañante de {f.gestionadoPor.nombre ?? "otro corredor"}
+                        {f.gestionadoPor.telefono && ` · ${f.gestionadoPor.telefono}`}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-atenuado">{f.correo}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-atenuado">{f.categoria}</td>
                   <td className="px-4 py-3 text-atenuado">{f.talla ?? "—"}</td>

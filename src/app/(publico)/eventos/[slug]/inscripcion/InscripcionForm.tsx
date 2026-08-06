@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import {
-  AcompanantesInscripcion,
-  type AcompananteInscribible,
-} from "./AcompanantesInscripcion";
+import { AcompanantesInscripcion } from "./AcompanantesInscripcion";
+import type { AcompananteInscribible } from "@/lib/acompanantes/inscribibles";
 import Link from "next/link";
 import { FirmaCanvas } from "@/components/forms/FirmaCanvas";
 import { Boton } from "@/components/ui/Boton";
@@ -137,6 +135,7 @@ export function InscripcionForm({
         {/* Va aquí y no en un paso propio: quien corre en familia decide a la
             vez qué corre cada uno, y separarlo obligaría a volver atrás. */}
         <AcompanantesInscripcion
+          slug={slug}
           acompanantes={acompanantes}
           moneda={moneda}
           tallas={tallas}

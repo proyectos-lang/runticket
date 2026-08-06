@@ -12,6 +12,7 @@ import { aceptarInvitacionEmpresa, cerrarSesion } from "@/lib/auth/actions";
 import { AppShell } from "@/components/shell/AppShell";
 import { SelectorEmpresa } from "@/components/shell/SelectorEmpresa";
 import { navPanel } from "@/components/shell/navegacion";
+import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
 import { Boton } from "@/components/ui/Boton";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
@@ -73,7 +74,8 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   // se le cuenta nada financiero, ni siquiera para pintar una cifra.
   const supabase = await createClient();
   const esAdmin = activa.rol === "admin_empresa";
-  const [{ count: carreras }, { count: enEspera }, { count: porVerificar }] = await Promise.all([
+  const [{ count: carreras }, { count: enEspera }, { count: porVerificar }, { count: avisos }] =
+    await Promise.all([
     supabase
       .from("eventos")
       .select("id", { count: "exact", head: true })
@@ -94,6 +96,14 @@ export default async function PanelLayout({ children }: { children: React.ReactN
           .eq("empresa_id", activa.empresaId)
           .eq("estado", "en_verificacion")
       : Promise.resolve({ count: 0 }),
+    // Sin filtro de empresa: la RLS ya limita las filas a este usuario, y el
+    // tipo es lo que separa lo que le llega como organizador de lo que le llega
+    // como corredor.
+    supabase
+      .from("notificaciones")
+      .select("id", { count: "exact", head: true })
+      .eq("leido", false)
+      .in("tipo", [...TIPOS_DE_PANEL]),
   ]);
 
   return (
@@ -102,6 +112,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
         carreras: carreras ?? 0,
         enEspera: enEspera ?? 0,
         porVerificar: porVerificar ?? 0,
+        avisos: avisos ?? 0,
       })}
       titulo={activa.nombreComercial}
       rolEmpresa={activa.rol}

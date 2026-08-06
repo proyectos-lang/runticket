@@ -1,21 +1,21 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatFechaHora } from "@/lib/format";
-import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
+import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
+import { EtiquetaMono } from "@/components/ui/Datos";
 import { marcarLeida, marcarTodasLeidas } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function NotificacionesPage() {
+export default async function NotificacionesPanelPage() {
   const supabase = await createClient();
 
-  // La RLS ya limita las filas al usuario en sesión; el filtro por tipo deja
-  // fuera los avisos que le llegan como organizador, que van a su propia bandeja
-  // en el panel.
+  // La RLS ya limita las filas al usuario en sesión; el filtro por tipo separa
+  // lo que le llega como organizador de lo que le llega como corredor.
   const { data: notificaciones } = await supabase
     .from("notificaciones")
     .select("id, tipo, titulo, mensaje, enlace, leido, created_at")
-    .not("tipo", "in", TIPOS_DE_PANEL_SQL)
+    .in("tipo", [...TIPOS_DE_PANEL])
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -25,7 +25,7 @@ export default async function NotificacionesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold text-texto">Notificaciones</h1>
+          <h1 className="text-2xl font-semibold text-texto">Avisos</h1>
           <p className="text-sm text-atenuado">
             {sinLeer > 0 ? `${sinLeer} sin leer` : "Todo al día"}
           </p>
@@ -44,7 +44,9 @@ export default async function NotificacionesPage() {
           {notificaciones.map((n) => (
             <article
               key={n.id}
-              className={`flex flex-col gap-2 rounded-xl border bg-superficie px-4.5 py-4 ${ n.leido ? "border-linea opacity-72" : "border-linea border-l-2 border-l-naranja" }`}
+              className={`flex flex-col gap-2 rounded-xl border bg-superficie px-4.5 py-4 ${
+                n.leido ? "border-linea opacity-72" : "border-linea border-l-2 border-l-naranja"
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <h2 className="font-medium text-texto">{n.titulo}</h2>
@@ -59,7 +61,7 @@ export default async function NotificacionesPage() {
                     href={n.enlace}
                     className="font-medium underline-offset-2 hover:underline text-emerald-400"
                   >
-                    Ir ahora
+                    Ver inscritos
                   </Link>
                 )}
                 {!n.leido && (
@@ -74,10 +76,13 @@ export default async function NotificacionesPage() {
           ))}
         </div>
       ) : (
-        <p className="rounded-2xl border border-dashed px-6 py-12 text-center text-sm border-linea-fuerte text-atenuado">
-          No tienes notificaciones. Aquí te avisaremos si se libera un cupo en una carrera en la
-          que estés en lista de espera.
-        </p>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-12 text-center border-linea-fuerte">
+          <EtiquetaMono>Sin avisos</EtiquetaMono>
+          <p className="max-w-md text-sm text-atenuado">
+            Aquí aparece cada inscripción nueva en cuanto ocurre, con quién se inscribió y cuánto
+            queda por cobrar. Una familia que se inscribe junta genera un solo aviso.
+          </p>
+        </div>
       )}
     </div>
   );

@@ -11,6 +11,13 @@ import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { generarPdfDeclaracion } from "@/lib/pdf/declaracion";
 import { formatFechaHora, formatPrecio } from "@/lib/format";
 import { dentroDelLimite, MENSAJE_LIMITE, auditar } from "@/lib/seguridad";
+import { categoriasConCupo } from "@/lib/eventos/consultas";
+import { acompananteSchema } from "@/lib/validacion/acompanantes";
+import { altaDeAcompanante } from "@/lib/acompanantes/alta";
+import {
+  aAcompananteInscribible,
+  type AcompananteInscribible,
+} from "@/lib/acompanantes/inscribibles";
 
 export type InscripcionState = {
   status: "idle" | "error";
@@ -47,6 +54,94 @@ function mensajeDeError(error: string): string {
     return "Ya tienes una inscripción activa en este evento.";
   }
   return error.replace(/^.*?:\s*/, "");
+}
+
+/** Sin estado «idle»: esto no es una acción de formulario, siempre resuelve a una u otra. */
+export type AltaAcompananteState =
+  | { status: "error"; message?: string; errors?: Record<string, string[] | undefined> }
+  | { status: "creado"; acompanante: AcompananteInscribible };
+
+/**
+ * Añade a alguien a la lista **sin salir del formulario de inscripción**.
+ *
+ * Antes había que interrumpir la inscripción, ir a «Mis acompañantes», darlo de
+ * alta y volver a empezar: la firma, la categoría y la talla ya elegidas se
+ * perdían por el camino. Por eso no es una acción de formulario con
+ * `useActionState` sino una función normal que el cliente llama y cuyo resultado
+ * añade a su propio estado: el formulario grande no se reenvía ni se recarga la
+ * página.
+ *
+ * Devuelve a la persona ya resuelta contra esta carrera —con sus categorías
+ * elegibles por edad— para que aparezca lista para marcar, sin un segundo viaje.
+ */
+export async function agregarAcompanante(
+  slug: string,
+  datos: Record<string, string>
+): Promise<AltaAcompananteState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect(`/login?next=/eventos/${slug}/inscripcion`);
+
+  if (!(await dentroDelLimite("acompanante"))) {
+    return { status: "error", message: MENSAJE_LIMITE };
+  }
+
+  const parsed = acompananteSchema.safeParse(datos);
+  if (!parsed.success) {
+    return { status: "error", errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const { data: evento } = await supabase
+    .from("eventos")
+    .select("id, fecha_inicio, estado, fecha_limite_inscripcion")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (!evento) return { status: "error", message: "Este evento ya no está disponible." };
+
+  // No se dan de alta acompañantes desde una carrera que ya no admite a nadie:
+  // la cuenta quedaría creada para nada.
+  const abierto =
+    evento.estado === "publicado" &&
+    (!evento.fecha_limite_inscripcion || new Date(evento.fecha_limite_inscripcion) > new Date());
+  if (!abierto) {
+    return { status: "error", message: "Esta carrera ya no admite inscripciones." };
+  }
+
+  const resultado = await altaDeAcompanante(user.id, parsed.data);
+  if (!resultado.ok) return { status: "error", message: resultado.message };
+
+  // Si el correo coincidía con una cuenta existente, esa persona puede estar ya
+  // inscrita por su cuenta; hay que decirlo aquí y no dejar que lo descubra al
+  // fallar el envío.
+  const [categorias, { data: yaInscrito }] = await Promise.all([
+    categoriasConCupo(evento.id),
+    supabase
+      .from("inscripciones")
+      .select("id")
+      .eq("evento_id", evento.id)
+      .eq("corredor_id", resultado.usuarioId)
+      .eq("estado", "activa")
+      .maybeSingle(),
+  ]);
+
+  return {
+    status: "creado",
+    acompanante: aAcompananteInscribible({
+      relacionId: resultado.relacionId,
+      parentesco: parsed.data.parentesco,
+      perfil: {
+        nombres: parsed.data.nombres,
+        apellidos: parsed.data.apellidos,
+        fecha_nacimiento: parsed.data.fechaNacimiento,
+        talla_predeterminada: parsed.data.tallaPredeterminada || null,
+      },
+      yaInscrito: Boolean(yaInscrito),
+      categorias,
+      fechaEvento: evento.fecha_inicio,
+    }),
+  };
 }
 
 export async function inscribirse(
@@ -220,6 +315,7 @@ export async function inscribirse(
    * pasarlo gastaría un uso por cada acompañante.
    */
   const fallidos: string[] = [];
+  const inscritos: string[] = [inscripcionId];
   for (const a of acompanantes) {
     const { data: idAcompanante, error: errorAcompanante } = await supabase.rpc(
       "inscribir_acompanante",
@@ -245,6 +341,7 @@ export async function inscribirse(
       fallidos.push(mensajeDeError(errorAcompanante?.message ?? "no se pudo inscribir"));
       continue;
     }
+    inscritos.push(idAcompanante);
 
     await auditar({
       accion: "inscripcion.crear",
@@ -253,6 +350,22 @@ export async function inscribirse(
       empresaId: evento.empresa_id,
       datosNuevos: { categoria_id: a.categoriaId, talla: a.talla || null, origen: "acompanante" },
     });
+  }
+
+  /**
+   * El aviso al organizador y el acuse al corredor, en una sola llamada con toda
+   * la operación: así la familia genera **un** aviso en la bandeja del panel y no
+   * uno por miembro.
+   *
+   * Va después de todo y con su error tragado a propósito: la inscripción ya
+   * está hecha, y quedarse sin avisar no es motivo para decirle al corredor que
+   * algo falló. Queda en el registro del servidor.
+   */
+  const { error: errorAviso } = await supabase.rpc("avisar_de_inscripcion", {
+    p_inscripcion_ids: inscritos,
+  });
+  if (errorAviso) {
+    console.error("No se pudo avisar de la inscripción", inscritos, errorAviso.message);
   }
 
   revalidatePath(`/eventos/${slug}`);

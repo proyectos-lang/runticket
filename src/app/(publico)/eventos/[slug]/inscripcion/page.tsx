@@ -6,7 +6,10 @@ import { categoriasConCupo } from "@/lib/eventos/consultas";
 import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { perfilCompleto } from "@/lib/validacion/perfil";
 import { edadEnFecha } from "@/lib/format";
-import type { AcompananteInscribible } from "./AcompanantesInscripcion";
+import {
+  aAcompananteInscribible,
+  type AcompananteInscribible,
+} from "@/lib/acompanantes/inscribibles";
 import { InscripcionForm, type CategoriaElegible } from "./InscripcionForm";
 import { ListaEsperaForm } from "./ListaEsperaForm";
 
@@ -112,45 +115,18 @@ export default async function InscripcionPage({
       : Promise.resolve({ data: [] as never[] }),
   ]);
 
-  const ETIQUETA_PARENTESCO: Record<string, string> = {
-    hijo: "Hijo o hija",
-    pareja: "Pareja",
-    familiar: "Familiar",
-    otro: "Acompañante",
-  };
-
-  const acompanantes: AcompananteInscribible[] = (relaciones ?? []).map((r) => {
-    const p = perfilesAcompanantes?.find((x) => x.id === r.usuario_id);
-    const edadSuya = p?.fecha_nacimiento
-      ? edadEnFecha(p.fecha_nacimiento, evento.fecha_inicio)
-      : null;
-
-    return {
-      id: r.id,
-      nombre: [p?.nombres, p?.apellidos].filter(Boolean).join(" ") || "Sin nombre",
-      parentesco: ETIQUETA_PARENTESCO[r.parentesco] ?? "Acompañante",
-      edad: edadSuya,
-      tallaSugerida: p?.talla_predeterminada ?? null,
+  // Las mismas reglas que aplica el alta en línea del propio formulario, para
+  // que una persona recién añadida se vea exactamente igual que las guardadas.
+  const acompanantes: AcompananteInscribible[] = (relaciones ?? []).map((r) =>
+    aAcompananteInscribible({
+      relacionId: r.id,
+      parentesco: r.parentesco,
+      perfil: perfilesAcompanantes?.find((x) => x.id === r.usuario_id),
       yaInscrito: (yaInscritos ?? []).some((i) => i.corredor_id === r.usuario_id),
-      categorias: categorias.map((c) => {
-        let motivo: string | null = null;
-        if (edadSuya === null) motivo = "Falta su fecha de nacimiento";
-        else if (c.cupos_disponibles !== null && c.cupos_disponibles <= 0) motivo = "Cupo agotado";
-        else if (c.edad_minima !== null && edadSuya < c.edad_minima)
-          motivo = `Solo desde ${c.edad_minima} años`;
-        else if (c.edad_maxima !== null && edadSuya > c.edad_maxima)
-          motivo = `Solo hasta ${c.edad_maxima} años`;
-        return {
-          id: c.id,
-          nombre: c.nombre,
-          distancia_km: c.distancia_km,
-          precio_vigente: Number(c.precio_vigente),
-          elegible: motivo === null,
-          motivo,
-        };
-      }),
-    };
-  });
+      categorias,
+      fechaEvento: evento.fecha_inicio,
+    })
+  );
 
   // Para no ofrecer apuntarse dos veces a la misma cola.
   const { data: enEspera } = hayElegibles
