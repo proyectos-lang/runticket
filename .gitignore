@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 
+# Scripts de comprobación de un rato. Se escriben contra la base de datos real y
+# suelen llevar claves dentro; en un repositorio público no pueden acabar en un
+# `git add -A` por descuido.
+*.tmp.mjs
+scripts-tmp-*
+
 # debug
 npm-debug.log*
 yarn-debug.log*

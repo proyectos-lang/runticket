@@ -16,26 +16,71 @@ export function FirmaCanvas({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dibujando = useRef(false);
+  /** Si de verdad se pintó algo. Un toque suelto no es una firma. */
+  const pintado = useRef(false);
   const [dataUrl, setDataUrl] = useState("");
 
+  /**
+   * Ajustar el lienzo a su tamaño real, **cuando lo tenga**.
+   *
+   * Medir una sola vez al montar no valía. En el formulario de inscripción la
+   * firma vive en el tercer paso del asistente, y los pasos se ocultan con
+   * `display:none` en vez de desmontarse (a propósito: si se desmontaran, sus
+   * campos saldrían del DOM y no viajarían en el envío). Un elemento oculto mide
+   * **cero**, así que el lienzo nacía de 0×0 píxeles: se veía el recuadro blanco,
+   * que es CSS, pero el trazo caía fuera del mapa de bits y no aparecía nada.
+   *
+   * Peor todavía, `toDataURL` de un lienzo sin píxeles devuelve `"data:,"`, de
+   * modo que la declaración se firmaba «en blanco» sin que nadie se enterara.
+   *
+   * Con `ResizeObserver` se ajusta en cuanto el paso se muestra, y también si la
+   * ventana cambia de ancho o el móvil se gira.
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // El canvas se dibuja a la resolución real del dispositivo para que la firma
-    // no se vea pixelada en pantallas de alta densidad.
-    const dpr = window.devicePixelRatio || 1;
-    const { width, height } = canvas.getBoundingClientRect();
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
+    const ajustar = () => {
+      const { width, height } = canvas.getBoundingClientRect();
+      if (!width || !height) return; // sigue oculto: nada que ajustar todavía
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.strokeStyle = "#18181b";
+      // A la resolución real del dispositivo, para que no se vea pixelada.
+      const dpr = window.devicePixelRatio || 1;
+      const ancho = Math.round(width * dpr);
+      const alto = Math.round(height * dpr);
+      if (canvas.width === ancho && canvas.height === alto) return;
+
+      // Cambiar el tamaño **borra** el lienzo, así que lo que hubiera se guarda
+      // antes y se vuelve a pintar: girar el teléfono no puede tragarse una
+      // firma a medio hacer.
+      const previo = document.createElement("canvas");
+      if (canvas.width > 0 && canvas.height > 0) {
+        previo.width = canvas.width;
+        previo.height = canvas.height;
+        previo.getContext("2d")?.drawImage(canvas, 0, 0);
+      }
+
+      canvas.width = ancho;
+      canvas.height = alto;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      // `setTransform` y no `scale`: `scale` multiplica la transformación
+      // vigente, y aquí esto se ejecuta más de una vez.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = "#18181b";
+
+      // En coordenadas CSS, que es en lo que trabaja el contexto ya escalado.
+      if (previo.width > 0) ctx.drawImage(previo, 0, 0, width, height);
+    };
+
+    ajustar();
+    const observador = new ResizeObserver(ajustar);
+    observador.observe(canvas);
+    return () => observador.disconnect();
   }, []);
 
   function posicion(e: React.PointerEvent<HTMLCanvasElement>) {
@@ -60,12 +105,20 @@ export function FirmaCanvas({
     const { x, y } = posicion(e);
     ctx.lineTo(x, y);
     ctx.stroke();
+    pintado.current = true;
   }
 
   function terminar(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!dibujando.current) return;
     dibujando.current = false;
-    setDataUrl(e.currentTarget.toDataURL("image/png"));
+    if (!pintado.current) return; // un toque sin arrastrar no deja trazo
+
+    const png = e.currentTarget.toDataURL("image/png");
+    // Un lienzo sin píxeles devuelve `"data:,"`. Antes eso se daba por firma
+    // buena y el botón de confirmar se habilitaba con la declaración en blanco.
+    if (!png.startsWith("data:image/png;base64,")) return;
+
+    setDataUrl(png);
     alCambiar?.(true);
   }
 
@@ -73,7 +126,11 @@ export function FirmaCanvas({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // En coordenadas CSS: el contexto está escalado por el `dpr`, así que usar
+    // `canvas.width` borraría un área varias veces mayor que el lienzo.
+    const { width, height } = canvas.getBoundingClientRect();
+    ctx.clearRect(0, 0, width, height);
+    pintado.current = false;
     setDataUrl("");
     alCambiar?.(false);
   }
