@@ -45,8 +45,13 @@ export default async function GrupoPage({
     .maybeSingle();
   if (!grupo) notFound();
 
-  const [{ data: personas }, { data: evento }, { data: empresa }, { data: pago }, { data: perfil }] =
-    await Promise.all([
+  const [
+    { data: personas, error: errorPersonas },
+    { data: evento },
+    { data: empresa },
+    { data: pago },
+    { data: perfil },
+  ] = await Promise.all([
       // Por RPC: `perfiles` solo deja leer la fila propia y la de quien sigue en
       // tu lista de acompañantes, así que quitar a alguien de la lista borraría
       // su nombre de una carrera ya pagada.
@@ -70,6 +75,33 @@ export default async function GrupoPage({
         .maybeSingle(),
       supabase.from("perfiles").select("nombres, apellidos").eq("id", grupo.pagador_id).single(),
     ]);
+
+  /**
+   * Un fallo de la consulta no es lo mismo que un grupo que no existe.
+   *
+   * Cuando `personas_de_grupo` todavía no está en la base, la llamada devuelve
+   * error y la lista vuelve vacía; tratarlo como «no encontrado» le decía al
+   * corredor que su inscripción no existe —que es falso y alarmante— en vez de
+   * que falta instalar algo.
+   */
+  if (errorPersonas) {
+    const faltaMigracion = /personas_de_grupo|schema cache|does not exist/i.test(
+      errorPersonas.message
+    );
+    return (
+      <div className="flex flex-col gap-4">
+        <h1 className="text-2xl font-semibold text-texto">Tu grupo</h1>
+        <Aviso tono="rojo" titulo="No pudimos cargar el grupo">
+          {faltaMigracion
+            ? "El pago en grupo todavía no está habilitado en la base de datos: falta ejecutar la migración 0028. Tus inscripciones están a salvo; puedes verlas una a una."
+            : "Inténtalo de nuevo en un momento. Tus inscripciones no se han perdido."}
+        </Aviso>
+        <BotonEnlace href="/portal/inscripciones" variante="secundaria">
+          Ver mis inscripciones
+        </BotonEnlace>
+      </div>
+    );
+  }
 
   const gente = personas ?? [];
   if (gente.length === 0) notFound();

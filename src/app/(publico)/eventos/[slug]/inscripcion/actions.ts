@@ -272,6 +272,23 @@ export async function inscribirse(
   });
 
   if (error || !inscripcionId) {
+    /**
+     * El grupo se crea antes porque la propia inscripción del titular ya entra
+     * en él. Si esta falla, ese grupo queda vacío para siempre y ensucia la
+     * conciliación del organizador, así que se deshace.
+     *
+     * Con el cliente administrador porque `grupos_inscripcion` no tiene política
+     * de DELETE a propósito —los grupos son inmutables una vez tienen gente—, y
+     * solo si de verdad quedó sin nadie.
+     */
+    if (grupoId) {
+      const admin = createAdminClient();
+      const { count } = await admin
+        .from("inscripciones")
+        .select("id", { count: "exact", head: true })
+        .eq("grupo_inscripcion_id", grupoId);
+      if (!count) await admin.from("grupos_inscripcion").delete().eq("id", grupoId);
+    }
     return { status: "error", message: mensajeDeError(error?.message ?? "No se pudo completar la inscripción.") };
   }
 
