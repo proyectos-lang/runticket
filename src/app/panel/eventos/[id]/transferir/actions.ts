@@ -28,7 +28,11 @@ const esquema = z.object({
   contactoEmergenciaNombre: z.string().trim().min(2, "Introduce el contacto de emergencia.").max(80),
   contactoEmergenciaTelefono: z.string().trim().min(6, "Introduce el teléfono de emergencia.").max(30),
   motivo: opcional(z.string().trim().max(200)),
-  firmaPng: z.string().min(30, "Falta la firma de quien recibe la inscripción."),
+  // La declaración del titular original no cubre a nadie más, así que quien
+  // recibe la inscripción tiene que aceptarla por su cuenta.
+  acepto: z.literal("on", {
+    message: "Falta que quien recibe la inscripción acepte la declaración.",
+  }),
 });
 
 /**
@@ -54,7 +58,7 @@ export async function transferirInscripcion(
     contactoEmergenciaNombre: formData.get("contactoEmergenciaNombre"),
     contactoEmergenciaTelefono: formData.get("contactoEmergenciaTelefono"),
     motivo: formData.get("motivo"),
-    firmaPng: formData.get("firmaPng"),
+    acepto: formData.get("acepto"),
   });
   if (!parsed.success) {
     return { status: "error", errors: parsed.error.flatten().fieldErrors };
@@ -118,20 +122,8 @@ export async function transferirInscripcion(
     return { status: "error", message: (error?.message ?? "No se pudo transferir.").replace(/^.*?:\s*/, "") };
   }
 
-  // La firma se sube después: hasta ahora no existía la carpeta de destino.
-  if (d.firmaPng.startsWith("data:image/png;base64,")) {
-    const binario = Buffer.from(d.firmaPng.split(",")[1], "base64");
-    const ruta = `${empresaId}/${nuevaId}/firma.png`;
-    const { error: errorFirma } = await admin.storage
-      .from("declaraciones")
-      .upload(ruta, binario, { contentType: "image/png", upsert: true });
-    if (!errorFirma) {
-      await admin
-        .from("inscripcion_firmas")
-        .update({ firma_imagen_url: ruta })
-        .eq("inscripcion_id", nuevaId);
-    }
-  }
+  // Ya no se sube ninguna firma dibujada: la aceptación queda con su fecha, su
+  // IP, su dispositivo y la versión del documento, que es lo que prueba algo.
 
   await auditar({
     accion: "inscripcion.transferir",

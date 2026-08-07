@@ -7,7 +7,7 @@ import {
 } from "./AcompanantesInscripcion";
 import type { AcompananteInscribible } from "@/lib/acompanantes/inscribibles";
 import Link from "next/link";
-import { FirmaCanvas } from "@/components/forms/FirmaCanvas";
+import { AceptacionDeclaracion } from "@/components/forms/AceptacionDeclaracion";
 import { Boton } from "@/components/ui/Boton";
 import { BarraPasos } from "@/components/ui/BarraPasos";
 import { RadioFila } from "@/components/ui/RadioFila";
@@ -20,7 +20,9 @@ import type { CategoriaConCupo } from "@/lib/eventos/consultas";
 
 const initialState: InscripcionState = { status: "idle" };
 
-const PASOS = ["Tu carrera", "Tus datos", "Firma"];
+// El tercer paso ya no pide una firma dibujada, sino la aceptación del
+// documento; llamarlo «Firma» prometía algo que ya no ocurre.
+const PASOS = ["Tu carrera", "Tus datos", "Declaración"];
 
 export type CategoriaElegible = CategoriaConCupo & {
   elegible: boolean;
@@ -66,7 +68,6 @@ export function InscripcionForm({
       ? perfil.tallaPredeterminada!
       : ""
   );
-  const [firmado, setFirmado] = useState(false);
   const [acepto, setAcepto] = useState(false);
   const [cupon, setCupon] = useState("");
   const [estadoCupon, setEstadoCupon] = useState<CuponState>({ status: "idle" });
@@ -82,6 +83,7 @@ export function InscripcionForm({
   const totalAcompanantes = acompanantes.reduce((a, l) => a + l.precio, 0);
   const total = Number(seleccionada?.precio_vigente ?? 0) + totalAcompanantes;
   const personas = acompanantes.length + 1;
+  const esMenorOAcompanantes = personas > 1;
 
   const tallasConStock = tallas.filter(
     (t) => t.inventario_disponible === null || t.inventario_disponible > 0
@@ -285,24 +287,17 @@ export function InscripcionForm({
           </div>
         )}
 
-        <FirmaCanvas name="firmaPng" alCambiar={setFirmado} />
+        <AceptacionDeclaracion
+          version={declaracion.version}
+          nombre={`${perfil.nombres} ${perfil.apellidos}`.trim()}
+          alCambiar={setAcepto}
+          error={state.errors?.acepto?.[0]}
+        />
 
-        <label className="flex cursor-pointer items-start gap-3 text-[0.78125rem] leading-relaxed text-atenuado">
-          <input
-            type="checkbox"
-            name="acepto"
-            value="on"
-            checked={acepto}
-            onChange={(e) => setAcepto(e.target.checked)}
-            className="mt-0.5 size-4.5 shrink-0 rounded accent-naranja"
-          />
-          <span>
-            He leído y acepto la declaración de salud y el deslinde de responsabilidad, así como los
-            términos y la política de privacidad de RunTicket.
-          </span>
-        </label>
-        {state.errors?.acepto?.[0] && (
-          <p className="text-sm text-red-300">{state.errors.acepto[0]}</p>
+        {esMenorOAcompanantes && (
+          <p className="text-[0.78125rem] leading-relaxed text-atenuado">
+            La aceptación cubre también a los acompañantes que inscribas: respondes por ellos.
+          </p>
         )}
 
         <div className="flex flex-col gap-3 rounded-xl border border-linea bg-superficie p-5">
@@ -421,7 +416,7 @@ export function InscripcionForm({
             type="submit"
             variante="primaria"
             tamano="lg"
-            disabled={pending || !categoriaId || !firmado || !acepto}
+            disabled={pending || !categoriaId || !acepto}
           >
             {pending
               ? "Confirmando…"

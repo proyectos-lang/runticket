@@ -28,9 +28,9 @@ export function DeclaracionForm({
     <form action={formAction} className="flex flex-col gap-4">
       {firmasExistentes > 0 && (
         <p className="rounded-lg px-4 py-3 text-sm bg-amber-950/30 text-amber-300">
-          {firmasExistentes} {firmasExistentes === 1 ? "persona ya firmó" : "personas ya firmaron"} la
-          versión vigente. Al publicar se crea una versión nueva: las firmas anteriores siguen
-          asociadas al texto que esas personas aceptaron, no al nuevo.
+          {firmasExistentes} {firmasExistentes === 1 ? "persona ya aceptó" : "personas ya aceptaron"}{" "}
+          la versión vigente. Al publicar se crea una versión nueva: las aceptaciones anteriores
+          siguen asociadas al texto que esas personas aceptaron, no al nuevo.
         </p>
       )}
 

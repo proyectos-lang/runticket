@@ -45,8 +45,8 @@ export default async function DeclaracionPage({ params }: { params: Promise<{ id
           Declaración de salud
         </h2>
         <p className="max-w-2xl text-sm text-atenuado">
-          El deslinde de responsabilidad que cada corredor firma al inscribirse. Se guarda con la
-          versión que firmó, su firma manuscrita, la fecha y la IP, y queda como PDF descargable.
+          El deslinde de responsabilidad que cada corredor acepta al inscribirse. Se guarda con la
+          versión que aceptó, la fecha y hora, la IP y el dispositivo, y queda como PDF descargable.
         </p>
       </div>
 

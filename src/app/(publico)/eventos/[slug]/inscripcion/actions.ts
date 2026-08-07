@@ -35,8 +35,9 @@ const inscripcionSchema = z.object({
   // de los casos, de ahí que tengan que tolerarlo.
   tutorNombre: opcional(z.string().trim().max(80)),
   tutorDocumento: opcional(z.string().trim().max(40)),
-  firmaPng: opcional(z.string()),
   codigoCupon: opcional(z.string().trim().max(30)),
+  // La aceptación es ahora la única constancia, así que es obligatoria de verdad:
+  // sin ella la inscripción no existe.
   acepto: z.literal("on", { message: "Debes aceptar la declaración de salud para inscribirte." }),
 });
 
@@ -167,7 +168,6 @@ export async function inscribirse(
     alergias: formData.get("alergias"),
     tutorNombre: formData.get("tutorNombre"),
     tutorDocumento: formData.get("tutorDocumento"),
-    firmaPng: formData.get("firmaPng"),
     codigoCupon: formData.get("codigoCupon"),
     acepto: formData.get("acepto"),
   });
@@ -301,7 +301,6 @@ export async function inscribirse(
       eventoNombre: evento.nombre,
       fechaEvento: formatFechaHora(evento.fecha_inicio, evento.zona_horaria),
       categoriaId: d.categoriaId,
-      firmaPng: d.firmaPng || null,
       declaracion,
       ip,
       dispositivo,
@@ -507,7 +506,6 @@ async function adjuntarDocumentos(args: {
   eventoNombre: string;
   fechaEvento: string;
   categoriaId: string;
-  firmaPng: string | null;
   declaracion: { id: string; version: number; contenido: string };
   ip: string | null;
   dispositivo: string | null;
@@ -529,16 +527,6 @@ async function adjuntarDocumentos(args: {
     admin.from("empresas").select("nombre_comercial").eq("id", args.empresaId).single(),
   ]);
 
-  let firmaUrl: string | null = null;
-  if (args.firmaPng?.startsWith("data:image/png;base64,")) {
-    const binario = Buffer.from(args.firmaPng.split(",")[1], "base64");
-    const ruta = `${carpeta}/firma.png`;
-    const { error } = await admin.storage
-      .from("declaraciones")
-      .upload(ruta, binario, { contentType: "image/png", upsert: true });
-    if (!error) firmaUrl = ruta;
-  }
-
   const pdf = await generarPdfDeclaracion({
     evento: args.eventoNombre,
     empresa: empresa?.nombre_comercial ?? "",
@@ -554,7 +542,6 @@ async function adjuntarDocumentos(args: {
     dispositivo: args.dispositivo,
     tutorNombre: args.tutorNombre,
     tutorDocumento: args.tutorDocumento,
-    firmaPng: args.firmaPng,
   });
 
   const rutaPdf = `${carpeta}/declaracion.pdf`;
@@ -562,11 +549,10 @@ async function adjuntarDocumentos(args: {
     .from("declaraciones")
     .upload(rutaPdf, pdf, { contentType: "application/pdf", upsert: true });
 
+  // `firma_imagen_url` ya no se escribe: la columna se conserva por los
+  // expedientes antiguos, que sí llevan trazo.
   await admin
     .from("inscripcion_firmas")
-    .update({
-      firma_imagen_url: firmaUrl,
-      pdf_url: errorPdf ? null : rutaPdf,
-    })
+    .update({ pdf_url: errorPdf ? null : rutaPdf })
     .eq("inscripcion_id", args.inscripcionId);
 }

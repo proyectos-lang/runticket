@@ -16,8 +16,6 @@ export type DatosDeclaracion = {
   dispositivo?: string | null;
   tutorNombre?: string | null;
   tutorDocumento?: string | null;
-  /** PNG en data URL, tal como sale del canvas de firma. */
-  firmaPng?: string | null;
 };
 
 const MARGEN = 56;
@@ -94,37 +92,80 @@ export async function generarPdfDeclaracion(datos: DatosDeclaracion): Promise<Ui
   escribir(datos.contenido, { tamano: 10, espacio: 5 });
   y -= 16;
 
-  if (datos.firmaPng?.startsWith("data:image/png;base64,")) {
-    const png = await pdf.embedPng(datos.firmaPng);
-    const escala = Math.min(180 / png.width, 70 / png.height);
-    const w = png.width * escala;
-    const h = png.height * escala;
-    nuevaPaginaSiHaceFalta(h + 30);
-    pagina.drawImage(png, { x: MARGEN, y: y - h, width: w, height: h });
-    y -= h + 6;
-    pagina.drawLine({
-      start: { x: MARGEN, y },
-      end: { x: MARGEN + 200, y },
-      thickness: 0.75,
-      color: rgb(0.6, 0.6, 0.65),
-    });
-    y -= 14;
-    escribir("Firma del participante", { tamano: 9, espacio: 8 });
-  } else {
-    escribir("Aceptado mediante confirmación electrónica (casilla de aceptación).", {
-      tamano: 9,
+  /**
+   * La constancia de aceptación, que es **la prueba** del documento.
+   *
+   * Antes aquí iba un trazo dibujado con el dedo. No probaba nada —no se coteja
+   * con ninguna firma registrada y cualquiera puede garabatearlo— y durante un
+   * tiempo se guardó en blanco sin que nadie lo notara. Lo que sí sostiene el
+   * consentimiento es el acto y su rastro, así que va completo, enmarcado y con
+   * la fecha en formato legible además del sello técnico.
+   */
+  const quienAcepta = datos.tutorNombre
+    ? `${datos.tutorNombre}${datos.tutorDocumento ? `, documento ${datos.tutorDocumento},` : ""} como tutor de ${datos.corredor}`
+    : `${datos.corredor}${datos.documento ? `, documento ${datos.documento},` : ""}`;
+
+  const fechaLegible = new Intl.DateTimeFormat("es-HN", {
+    dateStyle: "full",
+    timeStyle: "medium",
+    timeZone: "America/Tegucigalpa",
+  }).format(datos.firmadoEn);
+
+  const bloques: { texto: string; tamano: number; espacio: number; negrita?: boolean; gris?: boolean }[] = [
+    { texto: "Constancia de aceptación electrónica", tamano: 11, espacio: 8, negrita: true },
+    {
+      texto:
+        `${quienAcepta} declaró haber leído y aceptado íntegramente la versión ${datos.version} ` +
+        `de este documento, y participa bajo su propia responsabilidad.`,
+      tamano: 9.5,
       espacio: 8,
+    },
+    { texto: `Aceptado el ${fechaLegible} (hora de Honduras).`, tamano: 9, espacio: 6 },
+    {
+      texto:
+        `Sello técnico — ${datos.firmadoEn.toISOString()} · IP ${datos.ip ?? "no registrada"} · ` +
+        `Dispositivo: ${datos.dispositivo ?? "no registrado"}`,
+      tamano: 7.5,
+      espacio: 4,
+      gris: true,
+    },
+  ];
+
+  // El alto se mide, no se supone: con un nombre largo o un `user-agent` de los
+  // que ocupan tres líneas, un recuadro de alto fijo se quedaba corto y el texto
+  // salía por debajo del marco.
+  const alturaCaja =
+    bloques.reduce(
+      (alto, b) =>
+        alto +
+        envolver(b.texto, b.negrita ? negrita : normal, b.tamano, anchoUtil).length *
+          (b.tamano + b.espacio),
+      0
+    ) + 18;
+
+  y -= 6;
+  // Entera o en la página siguiente: partida por la mitad no se lee como una
+  // constancia, que es justo lo que tiene que parecer.
+  nuevaPaginaSiHaceFalta(alturaCaja + 12);
+
+  pagina.drawRectangle({
+    x: MARGEN - 8,
+    y: y - alturaCaja,
+    width: anchoUtil + 16,
+    height: alturaCaja,
+    borderColor: rgb(0.75, 0.75, 0.8),
+    borderWidth: 0.75,
+  });
+  y -= 14;
+
+  for (const b of bloques) {
+    escribir(b.texto, {
+      tamano: b.tamano,
+      espacio: b.espacio,
+      fuente: b.negrita ? negrita : normal,
+      ...(b.gris ? { color: rgb(0.4, 0.4, 0.45) } : {}),
     });
   }
-
-  y -= 8;
-  escribir("Constancia de aceptación", { tamano: 10, fuente: negrita, espacio: 6 });
-  escribir(
-    `Firmado el ${datos.firmadoEn.toISOString()} · IP ${datos.ip ?? "no registrada"} · Dispositivo: ${
-      datos.dispositivo ?? "no registrado"
-    }`,
-    { tamano: 8, espacio: 4, color: rgb(0.4, 0.4, 0.45) }
-  );
 
   return pdf.save();
 }

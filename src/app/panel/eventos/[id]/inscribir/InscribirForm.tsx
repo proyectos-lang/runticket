@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Campo, CLASE_CAMPO } from "@/components/ui/Campo";
 import { Select } from "@/components/ui/Select";
-import { FirmaCanvas } from "@/components/forms/FirmaCanvas";
+import { AceptacionDeclaracion } from "@/components/forms/AceptacionDeclaracion";
 import { formatPrecio } from "@/lib/format";
 import { inscribirManualmente, type ManualState } from "./actions";
 import { Boton } from "@/components/ui/Boton";
@@ -154,8 +154,8 @@ export function InscribirForm({
           {declaracion.contenido}
         </div>
         <p className="text-xs text-atenuado">
-          Versión {declaracion.version}. Pásale el dispositivo al corredor para que firme; queda
-          registrada con fecha, hora e IP.
+          Versión {declaracion.version}. Muéstrale el texto completo al corredor antes de
+          confirmar; su aceptación queda registrada con fecha, hora, IP y dispositivo.
         </p>
 
         {esMenor && (
@@ -165,7 +165,13 @@ export function InscribirForm({
           </div>
         )}
 
-        <FirmaCanvas name="firmaPng" />
+        {/* Sin nombre: los campos de arriba no están controlados y aquí se
+            hablaría de una persona cuyo nombre podría estar a medio escribir. */}
+        <AceptacionDeclaracion
+          version={declaracion.version}
+          enNombreDeOtro
+          error={state.errors?.acepto?.[0]}
+        />
       </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border p-6 border-linea bg-superficie">

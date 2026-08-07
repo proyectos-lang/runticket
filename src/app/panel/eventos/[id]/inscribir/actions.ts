@@ -31,7 +31,9 @@ const manualSchema = z.object({
   talla: opcional(z.string().trim().max(20)),
   precio: opcional(z.string()),
   cobrarEfectivo: opcional(z.literal("on")),
-  firmaPng: opcional(z.string()),
+  // Obligatoria: es la constancia del consentimiento. Antes no se pedía y
+  // `aceptado_checkbox` quedaba en falso incluso habiendo firmado en la mesa.
+  acepto: z.literal("on", { message: "Confirma que la persona aceptó la declaración." }),
   tutorNombre: opcional(z.string().trim().max(80)),
   tutorDocumento: opcional(z.string().trim().max(40)),
 });
@@ -62,7 +64,7 @@ export async function inscribirManualmente(
     talla: formData.get("talla"),
     precio: formData.get("precio"),
     cobrarEfectivo: formData.get("cobrarEfectivo"),
-    firmaPng: formData.get("firmaPng"),
+    acepto: formData.get("acepto"),
     tutorNombre: formData.get("tutorNombre"),
     tutorDocumento: formData.get("tutorDocumento"),
   });
@@ -138,21 +140,9 @@ export async function inscribirManualmente(
     return { status: "error", message: mensaje };
   }
 
-  // La firma se guarda tras crear la inscripción: hasta entonces no existe la
-  // carpeta donde debe ir.
-  if (d.firmaPng?.startsWith("data:image/png;base64,")) {
-    const binario = Buffer.from(d.firmaPng.split(",")[1], "base64");
-    const ruta = `${empresaId}/${inscripcionId}/firma.png`;
-    const { error: errorFirma } = await admin.storage
-      .from("declaraciones")
-      .upload(ruta, binario, { contentType: "image/png", upsert: true });
-    if (!errorFirma) {
-      await admin
-        .from("inscripcion_firmas")
-        .update({ firma_imagen_url: ruta })
-        .eq("inscripcion_id", inscripcionId);
-    }
-  }
+  // Ya no se sube ninguna firma dibujada. `inscribir_manualmente` deja
+  // `aceptado_checkbox` en true y el expediente guarda fecha, IP, dispositivo y
+  // versión del documento, que es lo que sostiene el consentimiento.
 
   await auditar({
     accion: "inscripcion.crear",

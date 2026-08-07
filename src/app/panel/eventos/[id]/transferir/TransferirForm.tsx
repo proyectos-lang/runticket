@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { Campo, CLASE_CAMPO } from "@/components/ui/Campo";
 import { Select } from "@/components/ui/Select";
 import { AreaTexto } from "@/components/ui/AreaTexto";
-import { FirmaCanvas } from "@/components/forms/FirmaCanvas";
+import { AceptacionDeclaracion } from "@/components/forms/AceptacionDeclaracion";
 import { transferirInscripcion, type TransferenciaState } from "./actions";
 import { Boton } from "@/components/ui/Boton";
 
@@ -106,16 +106,17 @@ export function TransferirForm({
           3. Declaración de salud
         </h3>
         <p className="text-sm text-atenuado">
-          La declaración que firmó el titular original no cubre a nadie más. Quien recibe la
-          inscripción tiene que firmar la suya, aquí y ahora.
+          La declaración que aceptó el titular original no cubre a nadie más. Quien recibe la
+          inscripción tiene que aceptarla por su cuenta, aquí y ahora.
         </p>
         <div className="max-h-48 overflow-y-auto whitespace-pre-line rounded-xl p-4 text-sm leading-relaxed bg-superficie-2 text-atenuado">
           {declaracion.contenido}
         </div>
-        <FirmaCanvas name="firmaPng" />
-        {state.errors?.firmaPng?.[0] && (
-          <p className="text-sm text-red-500">{state.errors.firmaPng[0]}</p>
-        )}
+        <AceptacionDeclaracion
+          version={declaracion.version}
+          enNombreDeOtro
+          error={state.errors?.acepto?.[0]}
+        />
 
         <AreaTexto
           label="Motivo (opcional)"
