@@ -42,7 +42,7 @@ export default async function PagosPage({
   const { data: pagos } = await supabase
     .from("pagos")
     .select(
-      "id, inscripcion_id, monto, moneda, metodo, estado, comprobante_url, referencia_externa, notas, created_at, verificado_en"
+      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, comprobante_url, referencia_externa, notas, created_at, verificado_en"
     )
     .eq("empresa_id", membresia.empresaId)
     .order("created_at", { ascending: false });
@@ -56,6 +56,26 @@ export default async function PagosPage({
         .select("id, evento_id, corredor_id, categoria_id, numero_dorsal")
         .in("id", inscripcionIds)
     : { data: [] as never[] };
+
+  /**
+   * Un pago familiar no cuelga de una inscripción sino de un grupo, así que sin
+   * esto aparecía en la tabla sin evento ni corredor —solo guiones— y sus
+   * miembros seguían contando como «por cobrar» aunque ya estuviera pagado.
+   */
+  const grupoIds = [
+    ...new Set((pagos ?? []).map((p) => p.grupo_inscripcion_id).filter(Boolean) as string[]),
+  ];
+  const { data: miembrosDeGrupo } = grupoIds.length
+    ? await supabase
+        .from("inscripciones")
+        .select("id, evento_id, corredor_id, grupo_inscripcion_id")
+        .in("grupo_inscripcion_id", grupoIds)
+        .eq("estado", "activa")
+    : { data: [] as { id: string; evento_id: string; corredor_id: string; grupo_inscripcion_id: string | null }[] };
+
+  const { data: grupos } = grupoIds.length
+    ? await supabase.from("grupos_inscripcion").select("id, evento_id, pagador_id").in("id", grupoIds)
+    : { data: [] as { id: string; evento_id: string; pagador_id: string }[] };
 
   // Inscripciones activas de la empresa: de aquí salen las candidatas a un cobro
   // manual. Se piden todas y se descartan después las que ya tienen un pago
@@ -71,6 +91,7 @@ export default async function PagosPage({
     ...new Set([
       ...(inscripciones ?? []).map((i) => i.corredor_id),
       ...(activas ?? []).map((i) => i.corredor_id),
+      ...(grupos ?? []).map((g) => g.pagador_id),
     ]),
   ];
   const { data: perfiles } = corredorIds.length
@@ -82,15 +103,33 @@ export default async function PagosPage({
     ? await supabase.from("categorias").select("id, nombre").in("id", categoriaIds)
     : { data: [] as never[] };
 
+  const nombreDe = (usuarioId: string | undefined) => {
+    const perfil = perfiles?.find((x) => x.id === usuarioId);
+    return `${perfil?.nombres ?? ""} ${perfil?.apellidos ?? ""}`.trim() || perfil?.correo || "—";
+  };
+
   let filas = (pagos ?? []).map((p) => {
+    if (p.grupo_inscripcion_id) {
+      const grupo = grupos?.find((g) => g.id === p.grupo_inscripcion_id);
+      const cuantos = (miembrosDeGrupo ?? []).filter(
+        (m) => m.grupo_inscripcion_id === p.grupo_inscripcion_id
+      ).length;
+      return {
+        ...p,
+        eventoId: grupo?.evento_id ?? null,
+        eventoNombre: eventos?.find((e) => e.id === grupo?.evento_id)?.nombre ?? "—",
+        dorsal: null,
+        corredor: `${nombreDe(grupo?.pagador_id)} · ${cuantos} personas`,
+      };
+    }
+
     const insc = inscripciones?.find((i) => i.id === p.inscripcion_id);
-    const perfil = perfiles?.find((x) => x.id === insc?.corredor_id);
     return {
       ...p,
       eventoId: insc?.evento_id ?? null,
       eventoNombre: eventos?.find((e) => e.id === insc?.evento_id)?.nombre ?? "—",
       dorsal: insc?.numero_dorsal ?? null,
-      corredor: `${perfil?.nombres ?? ""} ${perfil?.apellidos ?? ""}`.trim() || perfil?.correo || "—",
+      corredor: nombreDe(insc?.corredor_id),
     };
   });
 
@@ -103,9 +142,17 @@ export default async function PagosPage({
   // Quién sigue debiendo: activa y sin ningún pago en estado 'pagado'. Se mira
   // sobre `pagos` sin filtrar por evento, porque el filtro de la pantalla no
   // puede hacer que una inscripción parezca impagada.
-  const yaCobradas = new Set(
-    (pagos ?? []).filter((p) => p.estado === "pagado").map((p) => p.inscripcion_id)
-  );
+  const confirmados = (pagos ?? []).filter((p) => p.estado === "pagado");
+  const yaCobradas = new Set(confirmados.map((p) => p.inscripcion_id));
+
+  // Un pago familiar confirmado salda a **todo** el grupo. Sin esto, sus
+  // miembros seguían apareciendo en la lista de quién debe y el organizador les
+  // habría cobrado dos veces.
+  const gruposPagados = new Set(confirmados.map((p) => p.grupo_inscripcion_id).filter(Boolean));
+  for (const m of miembrosDeGrupo ?? []) {
+    if (m.grupo_inscripcion_id && gruposPagados.has(m.grupo_inscripcion_id)) yaCobradas.add(m.id);
+  }
+
   const porCobrar = (activas ?? [])
     .filter((i) => !yaCobradas.has(i.id))
     .filter((i) => !eventoFiltro || i.evento_id === eventoFiltro)

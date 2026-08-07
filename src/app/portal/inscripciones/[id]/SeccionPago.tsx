@@ -8,7 +8,7 @@ import { Boton } from "@/components/ui/Boton";
 import { claseBoton } from "@/components/ui/estilosBoton";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { CLASE_CAMPO } from "@/components/ui/Campo";
-import { subirComprobante, marcarPagoPorWhatsApp, type PagoState } from "./actions";
+import type { PagoState } from "./actions";
 import type { EstadoPago, MetodoPago } from "@/lib/supabase/database.types";
 
 const initialState: PagoState = { status: "idle" };
@@ -29,17 +29,31 @@ const BADGE: Record<EstadoPago, { texto: string; clase: string }> = {
  * Cuando el pago está confirmado el bloque se colapsa a su cabecera y no ofrece
  * ninguna acción, para que el naranja pase al CTA de retiro del kit. Nunca
  * pueden estar los dos a la vez.
+ *
+ * Sirve igual para una inscripción suelta que para el pago único de una familia:
+ * lo que cambia es a qué acciones se conecta, y esas se las pasa quien lo
+ * monta ya enlazadas. Duplicarlo habría dado dos bloques de pago que se
+ * separarían al primer arreglo.
  */
 export function SeccionPago({
-  inscripcionId,
+  subir,
+  registrarWhatsApp,
   monto,
   moneda,
   pago,
   enlaceWa,
   urlComprobante,
   verificadoEn,
+  detalle,
 }: {
-  inscripcionId: string;
+  /** Acción de servidor ya enlazada a la inscripción o al grupo. */
+  subir: (prev: PagoState, formData: FormData) => Promise<PagoState>;
+  /**
+   * Deja constancia de que va a coordinar por WhatsApp. Tiene que ser una acción
+   * de servidor ya enlazada: desde un componente de servidor no se puede pasar
+   * una función corriente a uno de cliente.
+   */
+  registrarWhatsApp: () => void | Promise<void>;
   monto: number;
   moneda: string;
   pago: {
@@ -51,11 +65,10 @@ export function SeccionPago({
   enlaceWa: string | null;
   urlComprobante: string | null;
   verificadoEn?: string | null;
+  /** Qué cubre el importe, p. ej. «3 personas». */
+  detalle?: string;
 }) {
-  const [state, formAction, pending] = useActionState(
-    subirComprobante.bind(null, inscripcionId),
-    initialState
-  );
+  const [state, formAction, pending] = useActionState(subir, initialState);
 
   const estado: EstadoPago = pago?.estado ?? "pendiente";
   const pagado = estado === "pagado";
@@ -71,7 +84,7 @@ export function SeccionPago({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <EtiquetaMono>Importe</EtiquetaMono>
+          <EtiquetaMono>{detalle ? `Importe · ${detalle}` : "Importe"}</EtiquetaMono>
           <span className="tabular text-3xl font-extrabold tracking-display-fuerte text-texto">
             {formatPrecio(monto, moneda)}
           </span>
@@ -124,7 +137,7 @@ export function SeccionPago({
                   rel="noopener noreferrer"
                   onClick={() => {
                     // Deja constancia del intento sin bloquear la apertura de WhatsApp.
-                    void marcarPagoPorWhatsApp(inscripcionId);
+                    void registrarWhatsApp();
                   }}
                   className={claseBoton("primaria", "md", "mt-1 self-start")}
                 >

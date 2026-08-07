@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { Select } from "@/components/ui/Select";
 import { Campo } from "@/components/ui/Campo";
@@ -11,7 +11,15 @@ import { PARENTESCOS, SEXOS } from "@/lib/validacion/acompanantes";
 import type { AcompananteInscribible } from "@/lib/acompanantes/inscribibles";
 import { agregarAcompanante } from "./actions";
 
-type Seleccion = { id: string; categoriaId: string; talla: string | null };
+export type Seleccion = { id: string; categoriaId: string; talla: string | null };
+
+/** Una persona ya elegida, resuelta con su precio, para el resumen del formulario. */
+export type LineaAcompanante = {
+  id: string;
+  nombre: string;
+  categoria: string;
+  precio: number;
+};
 
 const VACIO = {
   nombres: "",
@@ -45,11 +53,20 @@ export function AcompanantesInscripcion({
   acompanantes,
   moneda,
   tallas,
+  alCambiar,
 }: {
   slug: string;
   acompanantes: AcompananteInscribible[];
   moneda: string;
   tallas: { talla: string; inventario_disponible: number | null }[];
+  /**
+   * Le cuenta al formulario a quién se está inscribiendo y por cuánto.
+   *
+   * Sin esto, el resumen del último paso y el botón de confirmar solo sabían del
+   * titular: la familia entera veía «L 450.00» y pagaba 1.050. El estado se
+   * queda aquí —es de este bloque— y lo que sube es el resultado ya resuelto.
+   */
+  alCambiar?: (lineas: LineaAcompanante[]) => void;
 }) {
   const [lista, setLista] = useState<AcompananteInscribible[]>(acompanantes);
   const [seleccion, setSeleccion] = useState<Seleccion[]>([]);
@@ -122,11 +139,25 @@ export function AcompanantesInscripcion({
     });
   }
 
-  const total = seleccion.reduce((suma, s) => {
+  const lineas: LineaAcompanante[] = seleccion.map((s) => {
     const a = lista.find((x) => x.id === s.id);
     const c = a?.categorias.find((x) => x.id === s.categoriaId);
-    return suma + Number(c?.precio_vigente ?? 0);
-  }, 0);
+    return {
+      id: s.id,
+      nombre: a?.nombre ?? "Acompañante",
+      categoria: c?.nombre ?? "",
+      precio: Number(c?.precio_vigente ?? 0),
+    };
+  });
+  const total = lineas.reduce((suma, l) => suma + l.precio, 0);
+
+  // Se avisa por el contenido serializado y no por el array: este se recrea en
+  // cada render y el efecto se dispararía en bucle.
+  const huella = JSON.stringify(lineas);
+  useEffect(() => {
+    alCambiar?.(JSON.parse(huella) as LineaAcompanante[]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [huella]);
 
   return (
     <section className="flex flex-col gap-3">

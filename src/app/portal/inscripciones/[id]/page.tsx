@@ -10,6 +10,7 @@ import { EtiquetaMono } from "@/components/ui/Datos";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { Chip } from "@/components/ui/Chip";
 import { SeccionPago } from "./SeccionPago";
+import { subirComprobante, marcarPagoPorWhatsApp } from "./actions";
 import { CambiarTalla } from "./CambiarTalla";
 
 export const dynamic = "force-dynamic";
@@ -95,7 +96,7 @@ export default async function InscripcionDetallePage({
     empresa?.telefono_contacto && evento
       ? enlaceWhatsApp({
           telefonoOrganizador: empresa.telefono_contacto,
-          inscripcionId: inscripcion.id,
+          referencia: inscripcion.id,
           corredor: nombreCorredor,
           evento: evento.nombre,
           categoria: categoria?.nombre ?? "",
@@ -322,17 +323,35 @@ export default async function InscripcionDetallePage({
         </div>
       </div>
 
-      {Number(inscripcion.precio_pagado) > 0 && inscripcion.estado === "activa" && (
-        <SeccionPago
-          verificadoEn={pago?.verificado_en ?? null}
-          inscripcionId={inscripcion.id}
-          monto={Number(inscripcion.precio_pagado)}
-          moneda={inscripcion.moneda}
-          pago={pago}
-          enlaceWa={enlaceWa}
-          urlComprobante={urlComprobante}
-        />
-      )}
+      {Number(inscripcion.precio_pagado) > 0 &&
+        inscripcion.estado === "activa" &&
+        // Una inscripción que va en familia no se paga por su cuenta: el importe
+        // y el comprobante son del grupo entero. Aquí solo se señala el camino.
+        (inscripcion.grupo_inscripcion_id ? (
+          <section className="flex flex-col items-start gap-3 rounded-xl border px-5 py-4.5 border-linea bg-superficie-2">
+            <EtiquetaMono>Pago del grupo</EtiquetaMono>
+            <p className="text-sm text-atenuado">
+              Esta inscripción va junto a las demás de tu grupo, con un solo pago para todas.
+            </p>
+            <BotonEnlace
+              href={`/portal/grupos/${inscripcion.grupo_inscripcion_id}`}
+              variante="primaria"
+            >
+              Ver y pagar el grupo
+            </BotonEnlace>
+          </section>
+        ) : (
+          <SeccionPago
+            verificadoEn={pago?.verificado_en ?? null}
+            subir={subirComprobante.bind(null, inscripcion.id)}
+            registrarWhatsApp={marcarPagoPorWhatsApp.bind(null, inscripcion.id)}
+            monto={Number(inscripcion.precio_pagado)}
+            moneda={inscripcion.moneda}
+            pago={pago}
+            enlaceWa={enlaceWa}
+            urlComprobante={urlComprobante}
+          />
+        ))}
     </div>
   );
 }

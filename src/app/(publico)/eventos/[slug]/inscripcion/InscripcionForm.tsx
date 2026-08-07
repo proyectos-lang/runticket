@@ -1,7 +1,10 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { AcompanantesInscripcion } from "./AcompanantesInscripcion";
+import {
+  AcompanantesInscripcion,
+  type LineaAcompanante,
+} from "./AcompanantesInscripcion";
 import type { AcompananteInscribible } from "@/lib/acompanantes/inscribibles";
 import Link from "next/link";
 import { FirmaCanvas } from "@/components/forms/FirmaCanvas";
@@ -31,7 +34,9 @@ export function InscripcionForm({
   moneda,
   declaracion,
   esMenor,
-  acompanantes,
+  // Los que ya tiene guardados en su lista; los elegidos para esta carrera son
+  // otra cosa y viven en el estado de abajo.
+  acompanantes: acompanantesGuardados,
   perfil,
   categoriaInicial,
 }: {
@@ -67,6 +72,16 @@ export function InscripcionForm({
   const [estadoCupon, setEstadoCupon] = useState<CuponState>({ status: "idle" });
   const [comprobando, startComprobacion] = useTransition();
   const seleccionada = categorias.find((c) => c.id === categoriaId);
+
+  /**
+   * Quién más va, con su precio ya resuelto. Lo mantiene el bloque de
+   * acompañantes —el estado es suyo— y sube aquí para que el resumen y el botón
+   * hablen del importe de verdad y no solo del titular.
+   */
+  const [acompanantes, setAcompanantes] = useState<LineaAcompanante[]>([]);
+  const totalAcompanantes = acompanantes.reduce((a, l) => a + l.precio, 0);
+  const total = Number(seleccionada?.precio_vigente ?? 0) + totalAcompanantes;
+  const personas = acompanantes.length + 1;
 
   const tallasConStock = tallas.filter(
     (t) => t.inventario_disponible === null || t.inventario_disponible > 0
@@ -136,9 +151,10 @@ export function InscripcionForm({
             vez qué corre cada uno, y separarlo obligaría a volver atrás. */}
         <AcompanantesInscripcion
           slug={slug}
-          acompanantes={acompanantes}
+          acompanantes={acompanantesGuardados}
           moneda={moneda}
           tallas={tallas}
+          alCambiar={setAcompanantes}
         />
       </section>
 
@@ -321,23 +337,58 @@ export function InscripcionForm({
 
           {estadoCupon.status === "valido" && (
             <p className="text-sm text-cian">
-              Cupón válido: {estadoCupon.descripcion}. Se aplicará al confirmar.
+              Cupón válido: {estadoCupon.descripcion}. Se aplicará al confirmar
+              {/* Un cupón se gasta una vez. Si se aplicara a cada miembro, una
+                  familia de cuatro consumiría cuatro usos del mismo código. */}
+              {personas > 1 ? ", sobre tu inscripción." : "."}
             </p>
           )}
           {estadoCupon.status === "invalido" && (
             <p className="text-sm text-red-300">{estadoCupon.message}</p>
           )}
 
+          {/* Una línea por persona. Antes esto era una sola cifra —la del
+              titular— así que una familia de tres leía «L 450.00» y pagaba
+              1.050 sin enterarse hasta el momento de transferir. */}
+          <div className="flex flex-col gap-2 border-t border-linea pt-4">
+            <div className="flex items-baseline justify-between gap-4 text-sm">
+              <span className="min-w-0 truncate text-atenuado">
+                {perfil.nombres || "Tú"}
+                {seleccionada && (
+                  <span className="text-mudo"> · {seleccionada.nombre}</span>
+                )}
+              </span>
+              <span className="tabular shrink-0 font-mono text-texto">
+                {seleccionada ? formatPrecio(Number(seleccionada.precio_vigente), moneda) : "—"}
+              </span>
+            </div>
+
+            {acompanantes.map((a) => (
+              <div key={a.id} className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="min-w-0 truncate text-atenuado">
+                  {a.nombre}
+                  {a.categoria && <span className="text-mudo"> · {a.categoria}</span>}
+                </span>
+                <span className="tabular shrink-0 font-mono text-texto">
+                  {formatPrecio(a.precio, moneda)}
+                </span>
+              </div>
+            ))}
+          </div>
+
           <div className="flex items-end justify-between gap-4 border-t border-linea pt-4">
             <span className="text-sm text-atenuado">
-              {seleccionada ? seleccionada.nombre : "Selecciona una categoría"}
+              {personas === 1 ? "Total" : `Total · ${personas} personas`}
             </span>
             <span className="tabular text-2xl font-extrabold tracking-display text-texto">
-              {seleccionada ? formatPrecio(Number(seleccionada.precio_vigente), moneda) : "—"}
+              {seleccionada ? formatPrecio(total, moneda) : "—"}
             </span>
           </div>
+
           <p className="font-mono text-xs text-mudo">
-            El pago se coordina con el organizador al confirmar la inscripción.
+            {personas === 1
+              ? "El pago se coordina con el organizador al confirmar la inscripción."
+              : "Es un solo pago para todo el grupo. Al confirmarlo el organizador, se asignan los dorsales de todos."}
           </p>
         </div>
       </section>
@@ -375,7 +426,7 @@ export function InscripcionForm({
             {pending
               ? "Confirmando…"
               : seleccionada
-                ? `Confirmar · ${formatPrecio(Number(seleccionada.precio_vigente), moneda)}`
+                ? `Confirmar · ${formatPrecio(total, moneda)}`
                 : "Confirmar inscripción"}
           </Boton>
         )}

@@ -370,17 +370,26 @@ export async function inscribirse(
 
   revalidatePath(`/eventos/${slug}`);
 
+  /**
+   * Con grupo se aterriza en la ficha de la familia, no en la del titular: ahí
+   * está el pago único que cubre a todos y el dorsal de cada uno. Mandarlo a su
+   * propia ficha le enseñaría un importe que no es el que va a transferir.
+   */
+  const destino = grupoId
+    ? `/portal/grupos/${grupoId}`
+    : `/portal/inscripciones/${inscripcionId}`;
+
   if (fallidos.length > 0) {
-    // La del titular sí quedó: mandarlo a su ficha y contarle qué falló es más
+    // Lo del titular sí quedó: llevarlo a su ficha y contarle qué falló es más
     // útil que un error que sugiera que no se inscribió nadie.
     redirect(
-      `/portal/inscripciones/${inscripcionId}?nueva=1&aviso=${encodeURIComponent(
+      `${destino}?nueva=1&aviso=${encodeURIComponent(
         `Tu inscripción quedó lista, pero ${fallidos.length} acompañante(s) no: ${fallidos.join(" ")}`
       )}`
     );
   }
 
-  redirect(`/portal/inscripciones/${inscripcionId}?nueva=1`);
+  redirect(`${destino}?nueva=1`);
 }
 
 export type CuponState =

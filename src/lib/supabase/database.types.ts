@@ -1069,6 +1069,36 @@ export interface Database {
         Args: { p_inscripcion_ids: string[] };
         Returns: number;
       };
+      /**
+       * El titular declara el pago de toda la familia. El importe lo suma la
+       * base a partir de las inscripciones vivas del grupo.
+       */
+      registrar_intento_pago_grupo: {
+        Args: {
+          p_grupo_id: string;
+          p_metodo: string;
+          p_comprobante_url?: string | null;
+          p_referencia?: string | null;
+        };
+        Returns: string;
+      };
+      /** Las personas de una inscripción familiar, con su dorsal y su QR. */
+      personas_de_grupo: {
+        Args: { p_grupo_id: string };
+        Returns: {
+          inscripcion_id: string;
+          corredor_id: string;
+          nombre: string | null;
+          categoria: string | null;
+          distancia_km: number | null;
+          talla: string | null;
+          numero_dorsal: number | null;
+          codigo_qr: string | null;
+          precio_pagado: number;
+          kit_entregado: boolean;
+          es_titular: boolean;
+        }[];
+      };
       /** Quién gestiona a cada acompañante inscrito en un evento de la empresa. */
       gestores_de_inscritos: {
         Args: { p_evento_id: string };

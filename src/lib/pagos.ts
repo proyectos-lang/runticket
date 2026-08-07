@@ -35,22 +35,30 @@ export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
  */
 export function enlaceWhatsApp(datos: {
   telefonoOrganizador: string;
-  inscripcionId: string;
+  /** Identificador que el organizador buscará: la inscripción o el grupo. */
+  referencia: string;
   corredor: string;
   evento: string;
-  categoria: string;
+  /** Vacío cuando el mensaje cubre a varias personas con distintas distancias. */
+  categoria?: string | null;
+  /** Más de una convierte el mensaje en el de una familia. */
+  personas?: number;
   monto: number;
   moneda: string;
 }): string {
   // wa.me exige el número sin espacios, guiones ni signo +.
   const numero = datos.telefonoOrganizador.replace(/[^0-9]/g, "");
+  const varias = (datos.personas ?? 1) > 1;
+
   const mensaje = [
-    `Hola, quiero coordinar el pago de mi inscripción en ${datos.evento}.`,
+    varias
+      ? `Hola, quiero coordinar el pago de ${datos.personas} inscripciones en ${datos.evento}.`
+      : `Hola, quiero coordinar el pago de mi inscripción en ${datos.evento}.`,
     "",
-    `Corredor: ${datos.corredor}`,
-    `Categoría: ${datos.categoria}`,
+    varias ? `A nombre de: ${datos.corredor}` : `Corredor: ${datos.corredor}`,
+    ...(datos.categoria ? [`Categoría: ${datos.categoria}`] : []),
     `Monto: ${formatPrecio(datos.monto, datos.moneda)}`,
-    `Referencia: ${datos.inscripcionId}`,
+    `Referencia: ${datos.referencia}`,
   ].join("\n");
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
 }

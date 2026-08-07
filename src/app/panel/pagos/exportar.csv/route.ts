@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const { data: pagos } = await supabase
     .from("pagos")
     .select(
-      "id, inscripcion_id, monto, moneda, metodo, estado, referencia_externa, notas, created_at, verificado_en"
+      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, referencia_externa, notas, created_at, verificado_en"
     )
     .eq("empresa_id", membresia.empresaId)
     .order("created_at", { ascending: false });
@@ -28,25 +28,44 @@ export async function GET(request: Request) {
         .in("id", inscripcionIds)
     : { data: [] as never[] };
 
+  // Un pago familiar cuelga de un grupo, no de una inscripción: sin esto salía
+  // en la conciliación con el evento y el corredor en blanco.
+  const grupoIds = [
+    ...new Set((pagos ?? []).map((p) => p.grupo_inscripcion_id).filter(Boolean) as string[]),
+  ];
+  const { data: grupos } = grupoIds.length
+    ? await supabase.from("grupos_inscripcion").select("id, evento_id, pagador_id").in("id", grupoIds)
+    : { data: [] as { id: string; evento_id: string; pagador_id: string }[] };
+
+  const personaIds = [
+    ...new Set([
+      ...(inscripciones ?? []).map((i) => i.corredor_id),
+      ...(grupos ?? []).map((g) => g.pagador_id),
+    ]),
+  ];
+
   const [{ data: eventos }, { data: perfiles }] = await Promise.all([
     supabase.from("eventos").select("id, nombre, slug").eq("empresa_id", membresia.empresaId),
-    inscripciones?.length
-      ? supabase
-          .from("perfiles")
-          .select("id, nombres, apellidos, correo")
-          .in("id", [...new Set(inscripciones.map((i) => i.corredor_id))])
+    personaIds.length
+      ? supabase.from("perfiles").select("id, nombres, apellidos, correo").in("id", personaIds)
       : Promise.resolve({ data: [] as never[] }),
   ]);
 
   let filas = (pagos ?? []).map((p) => {
+    const grupo = p.grupo_inscripcion_id
+      ? grupos?.find((g) => g.id === p.grupo_inscripcion_id)
+      : undefined;
     const insc = inscripciones?.find((i) => i.id === p.inscripcion_id);
-    const perfil = perfiles?.find((x) => x.id === insc?.corredor_id);
+    const eventoId = grupo?.evento_id ?? insc?.evento_id ?? null;
+    const perfil = perfiles?.find((x) => x.id === (grupo?.pagador_id ?? insc?.corredor_id));
+
     return {
       ...p,
-      eventoId: insc?.evento_id ?? null,
-      eventoNombre: eventos?.find((e) => e.id === insc?.evento_id)?.nombre ?? "",
+      eventoId,
+      eventoNombre: eventos?.find((e) => e.id === eventoId)?.nombre ?? "",
       dorsal: insc?.numero_dorsal ?? "",
-      corredor: `${perfil?.nombres ?? ""} ${perfil?.apellidos ?? ""}`.trim(),
+      corredor:
+        `${perfil?.nombres ?? ""} ${perfil?.apellidos ?? ""}`.trim() + (grupo ? " (grupo)" : ""),
       correo: perfil?.correo ?? "",
     };
   });
