@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { avisarInscripcionRecibida } from "@/lib/correo/mensajes";
 import { z } from "zod";
 import { opcional } from "@/lib/validacion/comun";
 import { createClient } from "@/lib/supabase/server";
@@ -383,6 +384,11 @@ export async function inscribirse(
   if (errorAviso) {
     console.error("No se pudo avisar de la inscripción", inscritos, errorAviso.message);
   }
+
+  // Y el acuse por correo. Uno solo para toda la operación —una familia recibe
+  // un correo, no cuatro— y sin dorsal, porque todavía no existe: se asigna
+  // cuando el organizador confirma el pago, y eso es otro correo.
+  await avisarInscripcionRecibida(inscritos);
 
   revalidatePath(`/eventos/${slug}`);
 

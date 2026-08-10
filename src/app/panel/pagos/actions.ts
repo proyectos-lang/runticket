@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminEmpresaActivo } from "@/lib/auth/session";
 import { auditar } from "@/lib/seguridad";
-import { avisarPagoConfirmado } from "@/lib/correo/mensajes";
+import { avisarPagoConfirmado, avisarPagoRechazado } from "@/lib/correo/mensajes";
 import type { EstadoPago } from "@/lib/supabase/database.types";
 
 /**
@@ -41,6 +41,12 @@ export async function cambiarEstadoPago(pagoId: string, nuevoEstado: EstadoPago,
   // un fallo del proveedor de correo no puede deshacer un cobro ya registrado.
   if (nuevoEstado === "pagado") {
     await avisarPagoConfirmado(pagoId);
+  }
+  // El rechazo lleva el motivo que el organizador acaba de escribir. Cierra el
+  // 4.5: hasta ahora solo se veía entrando al portal, así que quien mandaba un
+  // comprobante borroso no se enteraba hasta extrañarle no tener dorsal.
+  if (nuevoEstado === "rechazado") {
+    await avisarPagoRechazado(pagoId);
   }
 
   revalidatePath("/panel/pagos");
@@ -129,6 +135,14 @@ export async function registrarPagoManual(
       referencia: d.referencia || null,
     },
   });
+
+  // Un cobro en efectivo entra directamente como «pagado» y dispara el dorsal
+  // igual que la aprobación de un comprobante, así que el corredor tiene que
+  // recibir su QR por el mismo camino. Sin esto, quien pagara en mesa era el
+  // único que se quedaba sin correo.
+  if (creado?.id) {
+    await avisarPagoConfirmado(creado.id);
+  }
 
   revalidatePath("/panel/pagos");
   return { status: "registrado" };
