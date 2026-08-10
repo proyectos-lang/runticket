@@ -5,7 +5,6 @@ import {
   contarPorDisciplina,
   departamentosConCarreras,
 } from "@/lib/eventos/consultas";
-import { esUrgente } from "@/lib/eventos/urgencia";
 import { DISCIPLINA_LABEL } from "@/lib/disciplinas";
 import Link from "next/link";
 import { FilaCarrera } from "@/components/publico/FilaCarrera";
@@ -82,7 +81,7 @@ async function Catalogo({ searchParams }: { searchParams: Promise<Busqueda> }) {
       : eventos;
 
   // Solo la primera carrera urgente se resalta; ver el comentario de FilaCarrera.
-  const idDestacado = ordenados.find(esUrgente)?.id ?? null;
+  const idDestacado = ordenados.find((e) => e.urgente)?.id ?? null;
 
   const activos = (
     ["q", "ciudad", "mes", "distancia", "disciplina", "departamento", "precioMax"] as const

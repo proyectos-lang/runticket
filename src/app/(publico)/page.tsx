@@ -1,30 +1,24 @@
+import { Suspense } from "react";
 import Link from "next/link";
-import { listarEventosPublicos, categoriasConCupo } from "@/lib/eventos/consultas";
+import { listarEventosPublicos } from "@/lib/eventos/consultas";
 import { DISCIPLINAS, DISCIPLINA_LABEL } from "@/lib/disciplinas";
 import { TarjetaCarrera } from "@/components/publico/TarjetaCarrera";
 import { HeroEvento } from "@/components/publico/HeroEvento";
+import { ContadorCupos } from "@/components/publico/ContadorCupos";
 import { PildoraEnlace } from "@/components/ui/Pildora";
-import { esUrgente } from "@/lib/eventos/urgencia";
 
+/**
+ * La portada es la página que más importa para SEO, así que se prerenderiza
+ * entera: el catálogo sale de una consulta cacheada y no se mira el reloj en
+ * ningún sitio —la urgencia de cada carrera viene ya calculada desde la caché—.
+ *
+ * Lo único que se calcula por visita son los cupos de la carrera destacada, y
+ * por eso van dentro de su propio `<Suspense>`. Antes se pedían aquí arriba, y
+ * esa sola línea impedía prerenderizar toda la portada.
+ */
 export default async function HomePage() {
   const eventos = await listarEventosPublicos({ soloFuturos: true });
   const [destacada, ...resto] = eventos;
-
-  // Los cupos solo se piden para la destacada: es el único sitio de la portada
-  // donde se muestra escasez, y son una consulta extra por evento.
-  let cupos: { disponibles: number; totales: number } | null = null;
-  if (destacada) {
-    const categorias = await categoriasConCupo(destacada.id);
-    const conTope = categorias.filter((c) => c.cupo_maximo !== null);
-    // Si ninguna categoría tiene tope no hay escasez que contar, y «0 de 0
-    // cupos» sería peor que no decir nada.
-    if (conTope.length) {
-      cupos = {
-        disponibles: conTope.reduce((a, c) => a + (c.cupos_disponibles ?? 0), 0),
-        totales: conTope.reduce((a, c) => a + (c.cupo_maximo ?? 0), 0),
-      };
-    }
-  }
 
   // Las disciplinas sin ninguna carrera no se ofrecen como filtro: un chip que
   // siempre devuelve cero es una promesa incumplida.
@@ -32,11 +26,23 @@ export default async function HomePage() {
 
   // Solo una tarjeta de la rejilla puede llevar el borde naranja de urgencia.
   const visibles = resto.slice(0, 6);
-  const idDestacado = visibles.find(esUrgente)?.id ?? null;
+  const idDestacado = visibles.find((e) => e.urgente)?.id ?? null;
 
   return (
     <main>
-      {destacada && <HeroEvento evento={destacada} cupos={cupos} />}
+      {destacada && (
+        <HeroEvento
+          evento={destacada}
+          cupos={
+            // Sin `fallback` visible: es una nota secundaria de escasez y un
+            // «consultando…» parpadeando en cada carga molesta más de lo que
+            // informa. Aparece cuando el dato es real.
+            <Suspense fallback={null}>
+              <ContadorCupos eventoId={destacada.id} />
+            </Suspense>
+          }
+        />
+      )}
 
       <section className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-14 lg:px-10">
         <div className="flex flex-wrap items-center justify-between gap-4">

@@ -6,7 +6,6 @@ import {
   formatDistancia,
 } from "@/lib/format";
 import { DISCIPLINA_LABEL } from "@/lib/disciplinas";
-import { motivoDeUrgencia } from "@/lib/eventos/urgencia";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { Chip } from "@/components/ui/Chip";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
@@ -33,7 +32,7 @@ export function FilaCarrera({
    */
   destacada?: boolean;
 }) {
-  const urgencia = motivoDeUrgencia(evento);
+  const urgencia = evento.motivoUrgencia;
   const cerrado = evento.estado !== "publicado";
   const resaltar = destacada && !cerrado;
 

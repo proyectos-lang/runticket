@@ -29,8 +29,15 @@ export function HeroEvento({
   cupos,
 }: {
   evento: EventoPublico;
-  /** null cuando ninguna categoría tiene tope: no se muestra escasez. */
-  cupos: { disponibles: number; totales: number } | null;
+  /**
+   * La línea de escasez, ya montada por quien llama.
+   *
+   * Es un hueco y no un par de cifras a propósito: los cupos son el único dato
+   * de la portada que no se cachea, así que llegan dentro de su propio
+   * `<Suspense>`. Si este componente los recibiera calculados, tendría que
+   * esperarlos para pintar el héroe entero.
+   */
+  cupos?: React.ReactNode;
 }) {
   const { antes, anio, despues } = partirTitular(evento.nombre);
   const distancias = evento.distancias.map(formatDistancia).filter(Boolean).join(" · ");
@@ -98,12 +105,7 @@ export function HeroEvento({
             <BotonEnlace href={`/eventos/${evento.slug}`} variante="secundaria" tamano="lg">
               Ver ruta y kit
             </BotonEnlace>
-            {cupos && (
-              <p className="tabular font-mono text-xs text-texto/45">
-                <span className="text-naranja-suave">{cupos.disponibles}</span> de{" "}
-                {cupos.totales} cupos disponibles
-              </p>
-            )}
+            {cupos}
           </div>
         </div>
 

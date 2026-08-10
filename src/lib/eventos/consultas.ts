@@ -1,5 +1,6 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { createPublicClient, TAG_EVENTOS, tagEvento } from "@/lib/supabase/publico";
+import { esUrgente, motivoDeUrgencia } from "@/lib/eventos/urgencia";
 import type { Disciplina, EstadoEvento } from "@/lib/supabase/database.types";
 
 /**
@@ -40,6 +41,16 @@ export type EventoPublico = {
   empresa: EmpresaResumen | null;
   distancias: number[];
   precioDesde: number | null;
+  /**
+   * Si a esta carrera se le acaba el plazo, y con qué texto decirlo.
+   *
+   * Viajan **calculados** y no se derivan al pintar porque dependen del reloj, y
+   * mirar el reloj mientras se renderiza impide prerenderizar la página igual
+   * que lo impide una consulta sin cachear. Al venir de aquí —de dentro de la
+   * caché— se congelan con el resto del catálogo y se refrescan con él.
+   */
+  urgente: boolean;
+  motivoUrgencia: string | null;
 };
 
 export type FiltrosEventos = {
@@ -129,6 +140,12 @@ export async function listarEventosPublicos(filtros: FiltrosEventos = {}): Promi
     ].sort((a, b) => a - b);
     const precios = cats.map((c) => Number(c.precio_base)).filter((p) => !Number.isNaN(p));
 
+    const paraUrgencia = {
+      estado: e.estado,
+      fechaInicio: e.fecha_inicio,
+      fechaLimiteInscripcion: e.fecha_limite_inscripcion,
+    };
+
     return {
       id: e.id,
       nombre: e.nombre,
@@ -151,6 +168,8 @@ export async function listarEventosPublicos(filtros: FiltrosEventos = {}): Promi
         : null,
       distancias,
       precioDesde: precios.length ? Math.min(...precios) : null,
+      urgente: esUrgente(paraUrgencia),
+      motivoUrgencia: motivoDeUrgencia(paraUrgencia),
     };
   });
 

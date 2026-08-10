@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { formatFechaMono, formatPrecio, formatDistancia } from "@/lib/format";
 import { DISCIPLINA_LABEL } from "@/lib/disciplinas";
-import { motivoDeUrgencia } from "@/lib/eventos/urgencia";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
 import type { EventoPublico } from "@/lib/eventos/consultas";
 
@@ -30,7 +29,9 @@ export function TarjetaCarrera({
   compacta?: boolean;
 }) {
   const cerrado = evento.estado !== "publicado";
-  const urgencia = destacada ? motivoDeUrgencia(evento) : null;
+  // El motivo viene calculado desde la consulta cacheada del catálogo: aquí
+  // no se puede mirar el reloj sin volver dinámica la página entera.
+  const urgencia = destacada ? evento.motivoUrgencia : null;
 
   return (
     <Link

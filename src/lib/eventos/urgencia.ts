@@ -1,5 +1,17 @@
 import { diasHasta } from "@/lib/format";
-import type { EventoPublico } from "@/lib/eventos/consultas";
+
+/**
+ * Lo mínimo para decidir la urgencia.
+ *
+ * Se pide una forma suelta y no `EventoPublico` porque quien llama a esto es
+ * ahora la propia consulta del catálogo, que es la que **construye** ese tipo:
+ * depender de él aquí crearía un ciclo entre los dos módulos.
+ */
+export type DatosUrgencia = {
+  estado: string;
+  fechaInicio: string;
+  fechaLimiteInscripcion: string | null;
+};
 
 /**
  * Qué carrera se pinta en naranja en el listado.
@@ -17,7 +29,16 @@ import type { EventoPublico } from "@/lib/eventos/consultas";
 const DIAS_DE_CIERRE = 7;
 const DIAS_DE_SALIDA = 10;
 
-export function esUrgente(evento: EventoPublico): boolean {
+/**
+ * **Se llama solo desde dentro de la consulta cacheada del catálogo.**
+ *
+ * Mira el reloj (`diasHasta`), y el reloj es dato no determinista: llamarla
+ * mientras se renderiza una página impide prerenderizarla, igual que una
+ * consulta sin cachear. Al calcularse dentro de la caché, el resultado se
+ * congela con el resto del catálogo y se refresca en cada revalidación —de
+ * sobra para un cartel que dice «cierra en 3 días»—.
+ */
+export function esUrgente(evento: DatosUrgencia): boolean {
   if (evento.estado !== "publicado") return false;
   if (evento.fechaLimiteInscripcion) {
     const dias = diasHasta(evento.fechaLimiteInscripcion);
@@ -28,7 +49,7 @@ export function esUrgente(evento: EventoPublico): boolean {
 }
 
 /** Texto que acompaña al borde naranja. Null cuando no hay urgencia que contar. */
-export function motivoDeUrgencia(evento: EventoPublico): string | null {
+export function motivoDeUrgencia(evento: DatosUrgencia): string | null {
   if (!esUrgente(evento)) return null;
   const fecha = evento.fechaLimiteInscripcion ?? evento.fechaInicio;
   const dias = diasHasta(fecha);
