@@ -11,8 +11,6 @@ import { ChipHorario, horarioEsHoy } from "@/components/portal/ChipHorario";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
 import { claseBoton } from "@/components/ui/estilosBoton";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Entrega de kit | RunTicket",
   robots: { index: false },

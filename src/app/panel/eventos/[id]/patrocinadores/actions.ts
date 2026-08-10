@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { tagEvento } from "@/lib/supabase/publico";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminDeEvento } from "@/lib/auth/session";
 import { patrocinadorSchema } from "@/lib/validacion/eventos";
@@ -17,7 +18,10 @@ async function revalidar(eventoId: string) {
   const { data: evento } = await supabase.from("eventos").select("slug").eq("id", eventoId).maybeSingle();
   revalidatePath(`/panel/eventos/${eventoId}/patrocinadores`);
   // Los patrocinadores salen en la ficha pública, en el dorsal y en el certificado.
-  if (evento?.slug) revalidatePath(`/eventos/${evento.slug}`);
+  if (evento?.slug) {
+    revalidatePath(`/eventos/${evento.slug}`);
+    updateTag(tagEvento(evento.slug));
+  }
 }
 
 /**

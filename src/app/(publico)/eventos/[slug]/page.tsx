@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
+import { cacheLife, cacheTag } from "next/cache";
+import { createPublicClient, TAG_EVENTOS, tagEvento } from "@/lib/supabase/publico";
 import { categoriasConCupo, puntosDeEntrega } from "@/lib/eventos/consultas";
 import { formatFechaMono, formatHoraMono, diasHasta } from "@/lib/format";
 import { enlaceGoogleCalendar, enlaceOutlook } from "@/lib/calendario";
@@ -15,10 +17,20 @@ import { Chip } from "@/components/ui/Chip";
 import { EtiquetaMono, PlaceholderMedia, PlacaLogo } from "@/components/ui/Datos";
 import type { Disciplina } from "@/lib/supabase/database.types";
 
-export const dynamic = "force-dynamic";
-
+/**
+ * Todo lo de la ficha que no cambia entre visitantes: la carrera, su
+ * organizador, sus imágenes, sus patrocinadores y sus tallas. Cinco consultas
+ * que antes se repetían en cada visita y ahora se hacen una vez por ventana.
+ *
+ * Los cupos **no están aquí** a propósito: se piden aparte y sin cachear, para
+ * no servir plazas que ya no existen (requisito 3.4).
+ */
 async function cargarEvento(slug: string) {
-  const supabase = await createClient();
+  "use cache";
+  cacheLife("hours");
+  cacheTag(TAG_EVENTOS, tagEvento(slug));
+
+  const supabase = createPublicClient();
   const { data: evento } = await supabase.from("eventos").select("*").eq("slug", slug).maybeSingle();
   if (!evento) return null;
 
@@ -103,7 +115,22 @@ function Celda({
   );
 }
 
-export default async function EventoDetallePage({ params }: { params: Promise<{ slug: string }> }) {
+/**
+ * La ficha depende del `slug`, que solo se conoce en la petición, así que el
+ * contenido va bajo `<Suspense>`. La diferencia con antes no es el momento en
+ * que se envía: es que **el trabajo ya está hecho**. Salvo los cupos, todo sale
+ * de caché, así que el cuerpo llega en cuanto se resuelve la ruta en vez de
+ * después de seis consultas encadenadas.
+ */
+export default function EventoDetallePage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense fallback={<div className="min-h-svh" />}>
+      <FichaEvento params={params} />
+    </Suspense>
+  );
+}
+
+async function FichaEvento({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const datos = await cargarEvento(slug);
   if (!datos) notFound();

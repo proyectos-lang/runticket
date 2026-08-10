@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { ChipEstadoEmpresa } from "@/components/admin/Chips";
 import { CrearEmpresaForm } from "./CrearEmpresaForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function EmpresasPage() {
   const supabase = await createClient();
   const { data: empresas } = await supabase

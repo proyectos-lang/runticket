@@ -6,8 +6,6 @@ import { ChipEstado } from "@/components/ui/Chip";
 import { formatFechaCorta, formatFechaHora } from "@/lib/format";
 import { BotonNotificar, BotonQuitar } from "./AccionesListaEspera";
 
-export const dynamic = "force-dynamic";
-
 export default async function ListaEsperaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

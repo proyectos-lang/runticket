@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -15,7 +16,26 @@ import { navPanel } from "@/components/shell/navegacion";
 import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
 import { Boton } from "@/components/ui/Boton";
 
-export default async function PanelLayout({ children }: { children: React.ReactNode }) {
+/**
+ * El panel es dinámico de principio a fin y no hay nada que prerenderizar: cada
+ * pantalla depende de quién entra, de qué empresa tiene activa y de su rol.
+ *
+ * El `<Suspense>` es lo que lo declara. Cubre el shell **y las páginas de
+ * debajo**, que se renderizan dentro de él, así que ninguna necesita marcarse
+ * una por una —así se pudieron quitar los `force-dynamic` de las cincuenta y
+ * pico pantallas—. El `fallback` va vacío a propósito: aquí no hay armazón que
+ * enseñar antes de saber quién eres, y un esqueleto parpadeando en cada
+ * navegación del panel molesta más de lo que informa.
+ */
+export default function PanelLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <PanelAutenticado>{children}</PanelAutenticado>
+    </Suspense>
+  );
+}
+
+async function PanelAutenticado({ children }: { children: React.ReactNode }) {
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login?next=/panel");
 

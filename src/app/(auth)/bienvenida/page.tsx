@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { Aviso } from "@/components/ui/Aviso";
 import { BotonEnlace } from "@/components/ui/Boton";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Cuenta confirmada | RunTicket HN",
   robots: { index: false },

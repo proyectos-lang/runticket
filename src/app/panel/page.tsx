@@ -8,8 +8,6 @@ import { AreaTemporal, BarrasHorizontales } from "@/components/metricas/Graficos
 import { EstadoVacio } from "@/components/panel/EstadoVacio";
 import type { MetricasEmpresa, EstadoEvento } from "@/lib/supabase/database.types";
 
-export const dynamic = "force-dynamic";
-
 export default async function PanelInicioPage() {
   const membresia = await getEmpresaActivaDelPanel();
   const esAdmin = membresia.rol === "admin_empresa";

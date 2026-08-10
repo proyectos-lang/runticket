@@ -5,8 +5,6 @@ import { categoriasConCupo } from "@/lib/eventos/consultas";
 import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { InscribirForm } from "./InscribirForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function InscribirPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

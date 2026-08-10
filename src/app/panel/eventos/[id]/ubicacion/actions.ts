@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { tagEvento } from "@/lib/supabase/publico";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminDeEvento } from "@/lib/auth/session";
 import { puntoEntregaSchema } from "@/lib/validacion/eventos";
@@ -24,7 +25,10 @@ async function revalidar(eventoId: string) {
     .maybeSingle();
   revalidatePath(`/panel/eventos/${eventoId}/ubicacion`);
   revalidatePath("/portal/inscripciones", "layout");
-  if (evento?.slug) revalidatePath(`/eventos/${evento.slug}`);
+  if (evento?.slug) {
+    revalidatePath(`/eventos/${evento.slug}`);
+    updateTag(tagEvento(evento.slug));
+  }
 }
 
 /** Crea o actualiza según venga `puntoId`: el formulario es el mismo. */

@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { ModuloCheckin } from "@/components/modulos/ModuloCheckin";
 
-export const dynamic = "force-dynamic";
-
 export default async function CheckinEventoPage({
   params,
   searchParams,

@@ -10,9 +10,8 @@ import {
   FilaProxima,
   TarjetaResultado,
 } from "@/components/portal/Historial";
+import { Insignias } from "@/components/portal/Insignias";
 import { BotonEnlace } from "@/components/ui/Boton";
-
-export const dynamic = "force-dynamic";
 
 /** Cuántas carreras se listan antes de mandar a la lista completa. */
 const VISIBLES = 5;
@@ -32,6 +31,9 @@ export default async function PortalPage() {
   const { data: ciudad } = perfil?.ciudad_id
     ? await supabase.from("ciudades").select("nombre").eq("id", perfil.ciudad_id).maybeSingle()
     : { data: null };
+
+  // La función filtra por `auth.uid()`: nunca devuelve las de otro corredor.
+  const { data: insignias } = await supabase.rpc("insignias_de_corredor");
 
   const nombre = [perfil?.nombres, perfil?.apellidos].filter(Boolean).join(" ") || "Mi cuenta";
   const sinCarreras = t.finalizadas.length === 0;
@@ -128,6 +130,8 @@ export default async function PortalPage() {
             )}
           </section>
         )}
+
+        <Insignias insignias={insignias ?? []} />
 
         <div className="flex flex-col gap-2.5">
           <BotonEnlace

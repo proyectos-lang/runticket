@@ -4,8 +4,6 @@ import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { prefijoEvento } from "@/lib/storage/rutas";
 import { GestorPatrocinadores } from "./GestorPatrocinadores";
 
-export const dynamic = "force-dynamic";
-
 export default async function PatrocinadoresPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

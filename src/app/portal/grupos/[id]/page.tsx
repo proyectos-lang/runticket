@@ -11,8 +11,6 @@ import { BotonEnlace } from "@/components/ui/Boton";
 import { SeccionPago } from "@/app/portal/inscripciones/[id]/SeccionPago";
 import { subirComprobanteGrupo, marcarPagoGrupoPorWhatsApp } from "./actions";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Mi grupo | RunTicket",
   robots: { index: false },

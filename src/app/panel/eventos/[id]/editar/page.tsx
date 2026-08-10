@@ -5,8 +5,6 @@ import { isoAFechaLocal } from "@/lib/format";
 import { EditarEventoForm } from "./EditarEventoForm";
 import { EliminarEventoForm } from "./EliminarEventoForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function EditarEventoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

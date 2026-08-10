@@ -5,8 +5,6 @@ import { isoAFechaLocal } from "@/lib/format";
 import { CabeceraModulo, EstadoVacio } from "@/components/panel/EstadoVacio";
 import { GestorCupones, type Cupon } from "./GestorCupones";
 
-export const dynamic = "force-dynamic";
-
 export default async function CuponesPage() {
   const membresia = await getEmpresaActivaDelPanel();
   if (membresia.rol !== "admin_empresa") redirect("/panel");

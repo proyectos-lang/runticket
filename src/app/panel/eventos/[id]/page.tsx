@@ -10,8 +10,6 @@ import { AvisoPublicacion, pendientesDePublicacion } from "@/components/panel/Es
 import { TarjetaMetricaPanel } from "@/components/panel/Medidores";
 import type { EstadoEvento, ResumenEvento } from "@/lib/supabase/database.types";
 
-export const dynamic = "force-dynamic";
-
 /** Transiciones ofrecidas según el estado actual: no todas tienen sentido siempre. */
 const SIGUIENTES: Record<EstadoEvento, { estado: EstadoEvento; etiqueta: string }[]> = {
   borrador: [{ estado: "publicado", etiqueta: "Publicar evento" }],

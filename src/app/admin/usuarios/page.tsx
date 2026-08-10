@@ -4,8 +4,6 @@ import { BuscadorUsuarios } from "./BuscadorUsuarios";
 import { FilaUsuario } from "./FilaUsuario";
 import { CrearUsuarioForm } from "./CrearUsuarioForm";
 
-export const dynamic = "force-dynamic";
-
 const POR_PAGINA = 50;
 
 export default async function UsuariosPage({

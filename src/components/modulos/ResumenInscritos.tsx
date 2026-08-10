@@ -2,6 +2,7 @@ import { formatPrecio } from "@/lib/format";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { TarjetaMetricaPanel, MedidorOcupacion } from "@/components/panel/Medidores";
 import { BarrasHorizontales } from "@/components/metricas/Graficos";
+import { BloqueRecurrencia } from "@/components/metricas/Recurrencia";
 import type { ResumenInscritos as Resumen, Reparto } from "@/lib/eventos/resumenInscritos";
 
 /**
@@ -112,6 +113,13 @@ export function ResumenInscritos({
           </div>
         </section>
       )}
+
+      <BloqueRecurrencia
+        datos={resumen.recurrencia}
+        titulo="Participantes nuevos y recurrentes"
+        etiquetaTotal="Participaciones"
+        nota="Recurrente es quien ya corrió antes una carrera tuya. Como el resto del informe, responde a los filtros de arriba."
+      />
 
       <section className="grid gap-5 rounded-2xl border border-linea bg-superficie p-5 lg:grid-cols-3">
         <div className="flex flex-col gap-2 lg:col-span-1">

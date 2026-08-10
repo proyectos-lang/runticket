@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -13,14 +14,31 @@ import {
 import { InscripcionForm, type CategoriaElegible } from "./InscripcionForm";
 import { ListaEsperaForm } from "./ListaEsperaForm";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Inscripción | RunTicket",
   robots: { index: false },
 };
 
-export default async function InscripcionPage({
+/**
+ * El flujo de inscripción es del corredor que entra de principio a fin: mira su
+ * sesión, su perfil, si ya está inscrito y a quién puede inscribir con él. No
+ * hay nada que prerenderizar, y el `<Suspense>` es la forma de decirlo.
+ */
+export default function InscripcionPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ categoria?: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="min-h-svh" />}>
+      <Inscripcion params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function Inscripcion({
   params,
   searchParams,
 }: {

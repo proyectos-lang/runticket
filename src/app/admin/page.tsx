@@ -5,8 +5,6 @@ import { TarjetaMetricaPanel } from "@/components/panel/Medidores";
 import { AreaTemporal, BarrasHorizontales } from "@/components/metricas/Graficos";
 import type { MetricasPlataforma } from "@/lib/supabase/database.types";
 
-export const dynamic = "force-dynamic";
-
 export default async function AdminInicioPage() {
   const supabase = await createClient();
   const { data } = await supabase.rpc("metricas_plataforma");

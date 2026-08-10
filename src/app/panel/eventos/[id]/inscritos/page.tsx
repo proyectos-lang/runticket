@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { InformeInscritos } from "@/components/modulos/InformeInscritos";
 
-export const dynamic = "force-dynamic";
-
 /**
  * El mismo informe que `/panel/inscritos`, acotado a esta carrera.
  *

@@ -5,8 +5,6 @@ import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { EstadoVacio } from "@/components/panel/EstadoVacio";
 import { TransferirForm } from "./TransferirForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function TransferirPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

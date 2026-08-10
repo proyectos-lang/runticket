@@ -49,6 +49,8 @@ export async function excelDeInscritos(
     { cabecera: "Club", ancho: 20 },
     { cabecera: "Equipo", ancho: 20 },
     { cabecera: "Inscrito el", formato: "fecha", ancho: 13 },
+    { cabecera: "Corredor", ancho: 13 },
+    { cabecera: "Carreras tuyas anteriores", formato: "numero", ancho: 24 },
     ...(incluirPagos
       ? ([
           { cabecera: "Estado del pago", ancho: 16 },
@@ -83,6 +85,8 @@ export async function excelDeInscritos(
     f.club,
     f.equipo,
     fecha(f.creadoEn),
+    f.recurrente ? "Recurrente" : "Nuevo",
+    f.carrerasPrevias,
     ...(incluirPagos
       ? [
           f.pago ? ESTADO_PAGO_LABEL[f.pago.estado] : "Sin registrar",
@@ -114,6 +118,8 @@ export async function excelDeInscritos(
     ["Kits entregados", resumen.kits.entregados],
     ["Kits pendientes", resumen.kits.pendientes],
     ["Asistencia confirmada", resumen.asistencia.presentes],
+    ["Participaciones de corredores recurrentes", resumen.recurrencia.recurrentes],
+    ["Participaciones de corredores nuevos", resumen.recurrencia.nuevos],
   ];
 
   if (incluirPagos) {

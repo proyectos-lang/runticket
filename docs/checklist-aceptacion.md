@@ -17,7 +17,7 @@ navegador qué funciona, qué está a medias y qué falta.
 ## 0. Preparación
 
 1. `npm run dev` → http://localhost:3000
-2. Migraciones 0001–0015 aplicadas en Supabase, y `npm run db:seed` para el
+2. Migraciones 0001–0031 aplicadas en Supabase, y `npm run db:seed` para el
    catálogo geográfico de Honduras.
 
 **Cuentas de prueba**
@@ -194,7 +194,7 @@ las claves fuera del repositorio.
 | 5.11 | Lista de espera al agotarse el cupo | ⚠️ | RPC lista (notifica al primero, ventana de 24 h); **sin interfaz** |
 | 5.12 | Inventario de tallas en tiempo real | ⚠️ | La función `inventario_tallas` existe y las métricas muestran la demanda; falta la pantalla dedicada con alerta de agotamiento |
 | 5.13 | Certificados en PDF | ✅ | Con tiempo y posiciones si hubo cronometraje |
-| 5.14 | Generación masiva de certificados | ❌ | Solo individual, bajo demanda |
+| 5.14 | Generación masiva de certificados | ✅ | *Resultados* → «Descargar todos los certificados (ZIP)». Se emite en flujo, así que empieza a bajar en cuanto está el primero |
 | 5.15 | Carga de resultados por CSV | ✅ | *Resultados*. Acepta `01:23:45`, `83:45` o segundos |
 | 5.16 | Publicación de resultados | ✅ | Publicar / despublicar |
 | 5.17 | Buscador público por nombre o dorsal | ✅ | `/eventos/[slug]/resultados` |
@@ -212,16 +212,16 @@ las claves fuera del repositorio.
 | 6.3 | Distribución por rango de edad | ✅ |
 | 6.4 | Por género | ✅ |
 | 6.5 | Por ciudad/departamento | ✅ |
-| 6.6 | Por nacionalidad | ❌ |
+| 6.6 | Por nacionalidad | ✅ |
 | 6.7 | Por nivel de experiencia | ✅ |
 | 6.8 | Origen (cómo se enteró) | ✅ |
 | 6.9 | Ocupación de cupos por categoría | ✅ |
 | 6.10 | Demanda por talla | ✅ |
 | 6.11 | Ingresos por evento, método y día | ✅ |
-| 6.12 | Corredores recurrentes | ❌ |
+| 6.12 | Corredores recurrentes | ✅ Bloque «nuevos y recurrentes» en métricas y en el padrón, más columna por fila y filtro |
 | 6.13 | Exportación a Excel/CSV | ✅ |
 | 6.14 | Acceso directo a la base para Power BI | ✅ |
-| 6.15 | Filtro por rango de fechas | ⚠️ Filtra por evento, no por rango libre |
+| 6.15 | Filtro por rango de fechas | ✅ Rango libre por fecha de inscripción, con atajos de 7 y 30 días |
 
 > `/panel/eventos/[id]/metricas`. Todos los gráficos llevan su **tabla
 > equivalente** desplegable, y se validó el contraste en modo claro y oscuro.
@@ -248,7 +248,7 @@ las claves fuera del repositorio.
 | 8.4 | Validación en servidor con Zod | ✅ | Todas las Server Actions |
 | 8.5 | Rate limiting en endpoints públicos | ❌ | **Pendiente** para registro e inscripción |
 | 8.6 | Backup diario automático | ⚠️ | Requiere plan Pro de Supabase: acción del cliente |
-| 8.7 | Renderizado estático/ISR para SEO | ⚠️ | Todo es dinámico hoy. Conviene pasar el detalle de evento a ISR |
+| 8.7 | Renderizado estático/ISR para SEO | ✅ | `cacheComponents` activo: armazón estático + contenido cacheado por datos. Ver §«Caché y velocidad» |
 | 8.8 | Imágenes optimizadas | ✅ | `next/image` |
 | 8.9 | Responsive mobile-first | ✅ | Revisar en celular real |
 | 8.10 | Interfaz en español | ✅ | |
@@ -269,8 +269,8 @@ Todas tienen su **tabla y reglas de seguridad creadas**; lo que falta es interfa
 | 9.2 | Inscripción por equipos o grupos | ⚠️ Tabla `grupos_inscripcion`; sin interfaz |
 | 9.3 | Transferencia de inscripción | ⚠️ RPC `transferir_inscripcion`; sin interfaz |
 | 9.4 | Patrocinadores por evento | ⚠️ Se muestran en el detalle público, el dorsal y el certificado; falta la pantalla de alta |
-| 9.5 | Encuesta post-evento (NPS) | ⚠️ Tabla; sin interfaz |
-| 9.6 | Programa de fidelidad e insignias | ⚠️ Tablas; sin interfaz |
+| 9.5 | Encuesta post-evento (NPS) | ✅ Se pide en el portal (aviso al finalizar + bloque en la ficha y en el resultado); el NPS y los comentarios anónimos salen en métricas |
+| 9.6 | Programa de fidelidad e insignias | ✅ `/panel/insignias`, por empresa, con motor de concesión al finalizar la carrera |
 | 9.7 | Verificación de edad para categorías infantiles | ✅ Flujo de tutor completo |
 | 9.8 | Modo PWA instalable | ❌ |
 | 9.9 | Política de reembolsos configurable | ⚠️ Tabla `eventos_politica_reembolso`; no se aplica automáticamente |
@@ -361,17 +361,86 @@ explicativo. Se cerraron además:
 - **Fotos enumerables**: la tabla exponía el mapa dorsal→fotos, cruzable con los
   resultados para identificar a cualquier participante.
 
+## Cerrado en la tanda de fidelidad y velocidad
+
+Las migraciones **0029, 0030 y 0031**, con sus pantallas.
+
+| Requisito | Dónde |
+|---|---|
+| Nacionalidad (6.6) | Gráfico en `/panel/eventos/[id]/metricas` |
+| Corredores recurrentes (6.12) | Bloque en métricas y en el padrón; columna «Repite · N» por fila, filtro «solo recurrentes / solo nuevos» y dos columnas nuevas en el Excel |
+| Rango libre de fechas (6.15) | Filtro en métricas, por **fecha de inscripción** y en la zona horaria del evento |
+| Encuesta NPS (9.5) | Aviso en la campana al finalizar la carrera + bloque en `/portal/inscripciones/[id]` y en `…/resultado`; resultado en métricas |
+| Insignias (9.6) | `/panel/insignias` y bloque en el perfil del corredor |
+| Certificados masivos (5.14) | `…/resultados` → ZIP en flujo |
+| ISR y velocidad (8.7) | `cacheComponents` en `next.config.ts` |
+
+**Cómo se resolvió cada objeción de la lista anterior**
+
+- **NPS sin correos.** El correo está excluido a petición del cliente, así que la
+  encuesta se pide **dentro del producto**: un aviso en la campana al dar la
+  carrera por finalizada, y un bloque de un solo paso en las dos pantallas que el
+  corredor abre por su cuenta —su ficha y su resultado—. Los comentarios le
+  llegan al organizador **sin identificar a quien los escribió**, que es lo que
+  hace que la gente conteste con franqueza.
+- **Insignias.** Dejan de ser globales: la 0031 les pone `empresa_id`, de modo que
+  cada organizador define las suyas y se ganan **solo con carreras suyas**. El
+  motor que faltaba evalúa un vocabulario cerrado de cuatro criterios (carreras
+  completadas, km acumulados, distancia en una sola carrera, años distintos) al
+  marcar una carrera como finalizada.
+- **Certificados masivos.** El problema era el tiempo de ejecución, y se atacó por
+  los tres sitios: las consultas pasan de ~6 por corredor a **5 en total**; el ZIP
+  se emite según se genera, así que solo hay un PDF vivo a la vez; y al ir en
+  flujo la respuesta empieza a bajar enseguida en vez de tardar minutos en
+  contestar. Va sin comprimir, porque un PDF ya viene comprimido. Con carreras muy
+  grandes hay tope por lote y **el ZIP lo dice dentro**, con la URL del siguiente.
+
+### Caché y velocidad
+
+El sitio público era dinámico de punta a punta por un solo motivo: la cabecera
+leía la sesión en el layout, y con eso ninguna página de debajo podía
+prerenderizarse. Ahora esa lectura vive bajo `<Suspense>` y el catálogo se cachea
+**por datos y no por página** (`src/lib/eventos/consultas.ts`), con un cliente de
+Supabase que no lee cookies (`src/lib/supabase/publico.ts`).
+
+- Las páginas públicas pasaron de `ƒ` (dinámicas) a `◐` (armazón estático +
+  contenido que llega detrás).
+- **Los cupos siguen en tiempo real** (3.4): `categoriasConCupo` es la única
+  consulta pública deliberadamente sin cachear. Servir una plaza que ya no existe
+  sería peor que tardar un poco más.
+- El panel invalida las etiquetas al guardar, así que publicar una carrera o
+  cambiar un tramo de precio se ve en el acto, sin esperar a que expire.
+- En el panel, la conciliación de métricas dejó de traerse **todo el histórico de
+  pagos de la empresa** para quedarse con una parte: ahora agrega en Postgres.
+
+**Dos correcciones de fondo por el camino**
+
+- **El pago familiar no se contaba.** Desde la 0028 un pago de grupo tiene
+  `inscripcion_id` nulo, y tanto la conciliación de métricas como el padrón
+  filtraban solo por esa columna: **todo lo cobrado a familias quedaba fuera del
+  recaudado**, y sus miembros salían como «Sin registrar» en el padrón aunque
+  hubieran pagado.
+- **La conversión de pago se contaba por pago y no por inscripción.** Un pago
+  familiar cubre a cuatro personas y contaba como uno, así que la tasa salía
+  hundida en las carreras con muchas familias.
+
 ## Resumen de brechas restantes
 
 1. **Equipos** (9.2): la tabla existe y se puede mostrar como columna, pero el
    flujo público de inscripción en grupo necesita otra migración.
-2. **Encuesta NPS** (9.5): sin correos la tasa de respuesta sería mínima.
-3. **Insignias** (9.6): la tabla es global, sin `empresa_id` ni motor de concesión.
-4. **Certificados masivos** (5.14): generar N PDF en una acción agota el tiempo de
-   ejecución; se mantienen bajo demanda.
-5. **ISR en páginas públicas** (8.7) para SEO y velocidad.
-6. **PWA** (9.8).
-7. **Carga masiva de fotos** desde el panel (el buscador público ya funciona).
+2. **PWA** (9.8).
+3. **Carga masiva de fotos** desde el panel (el buscador público ya funciona).
+4. **Parámetros globales de plataforma** (1.9): tabla `configuracion_plataforma`
+   lista, sin interfaz.
+5. **Inicio de sesión con Google** (3.14).
+6. **Campos adicionales definibles por el organizador** (3.32): hoy club, equipo y
+   alergias están fijos en código.
+7. **Numeración de dorsal por categoría** (5.3): solo secuencial por evento.
+8. **Plantillas de correo por empresa** (7.2): tabla lista, sin interfaz. Ligado a
+   que se reactiven las notificaciones por correo.
+9. **Segundo idioma** (8.11): los textos siguen en los componentes. **Descartado a
+   petición del cliente en esta tanda.**
+10. **Política de reembolsos** (9.9): la tabla existe, pero no se aplica sola.
 
 **Acciones del cliente, no del código**
 

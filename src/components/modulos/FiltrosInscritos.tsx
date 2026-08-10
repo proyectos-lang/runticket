@@ -19,6 +19,7 @@ const CLAVES = [
   "asistencia",
   "edad",
   "dorsal",
+  "recurrencia",
 ] as const;
 
 export function FiltrosInscritos({
@@ -216,6 +217,17 @@ export function FiltrosInscritos({
           <option value="">Dorsal: cualquiera</option>
           <option value="con">Con dorsal</option>
           <option value="sin">Sin dorsal</option>
+        </select>
+
+        <select
+          value={params.get("recurrencia") ?? ""}
+          onChange={(e) => actualizar("recurrencia", e.target.value)}
+          className={clase}
+          aria-label="Filtrar por corredores que repiten"
+        >
+          <option value="">Nuevos y recurrentes</option>
+          <option value="recurrente">Solo recurrentes</option>
+          <option value="nuevo">Solo nuevos</option>
         </select>
       </div>
 

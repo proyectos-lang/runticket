@@ -96,7 +96,8 @@ export function navPanel(
         // Informativo, no urgente: que haya cola no obliga a hacer nada hoy.
         contador: contadores?.enEspera,
       },
-      { href: "/panel/cupones", etiqueta: "Cupones", icono: "cupones" }
+      { href: "/panel/cupones", etiqueta: "Cupones", icono: "cupones" },
+      { href: "/panel/insignias", etiqueta: "Insignias", icono: "resultados" }
     );
   }
 

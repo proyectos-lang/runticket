@@ -3,8 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { PerfilForm } from "./PerfilForm";
 import { SubidorAvatar } from "@/components/portal/SubidorAvatar";
 
-export const dynamic = "force-dynamic";
-
 export default async function PerfilPage({
   searchParams,
 }: {

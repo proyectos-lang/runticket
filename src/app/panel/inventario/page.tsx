@@ -5,8 +5,6 @@ import { CabeceraModulo, EstadoVacio } from "@/components/panel/EstadoVacio";
 import { SelectorEvento } from "@/components/panel/SelectorEvento";
 import { ModuloInventario } from "@/components/modulos/ModuloInventario";
 
-export const dynamic = "force-dynamic";
-
 export default async function InventarioPage({
   searchParams,
 }: {

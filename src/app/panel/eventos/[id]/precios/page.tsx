@@ -4,8 +4,6 @@ import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { isoAFechaLocal } from "@/lib/format";
 import { GestorPrecios, type Tramo } from "./PreciosForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function PreciosPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

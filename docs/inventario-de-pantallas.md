@@ -271,8 +271,8 @@ alcanzado.
 
 **Función global:** retención. Es la única parte que da valor **entre** carreras.
 
-Navegación lateral: Perfil e historial · Mis inscripciones · Certificados ·
-Notificaciones · **Cuenta**: Perfil deportivo · Ajustes de cuenta.
+Navegación lateral: Perfil e historial · Mis inscripciones · Mis acompañantes ·
+Certificados · Notificaciones · **Cuenta**: Perfil deportivo · Ajustes de cuenta.
 
 ### 6.1 Perfil e historial — `/portal` *(pantalla raíz)*
 - **Cabecera de identidad**: avatar circular de 64px con **borde naranja de 2px** (sin
@@ -299,6 +299,13 @@ Notificaciones · **Cuenta**: Perfil deportivo · Ajustes de cuenta.
     «Resultados en revisión» y **sin barra de percentil**.
 - **Estado vacío (0 carreras corridas)**: tarjeta centrada «Aún no tienes carreras» / «Tu
   primer tiempo aparecerá aquí» / botón naranja «EXPLORAR CARRERAS».
+- **INSIGNIAS**: rejilla de dos columnas con las que ha ganado. Cada una: disco de
+  44px sobre **placa clara** con el icono (o la inicial del nombre si el
+  organizador no subió ninguno), nombre, descripción y, en mono, **el nombre de la
+  empresa que se la concedió** —sin eso, un corredor con insignias de tres
+  organizadores vería una colección sin dueño—. **El bloque entero desaparece si
+  no tiene ninguna**, igual que la tira de métricas: una rejilla de huecos grises
+  rotulada «insignias» informa de lo que le falta, no motiva.
 - **Pie**: dos botones fantasma de ancho completo, «Descargar certificados (PDF)» y
   «Ajustes de cuenta».
 
@@ -325,6 +332,14 @@ en naranja y un botón naranja compacto «Completar L 400.00».
 - **Retiro del kit**: puntos de entrega, contenido del kit numerado y aviso azul sobre
   autorizar a otra persona.
 - **Documentos**: declaración de salud firmada (PDF) y dorsal con QR (PDF).
+- **Encuesta de satisfacción**: solo si la carrera está finalizada y aún no ha
+  respondido. Pregunta «¿Recomendarías {carrera} a otro corredor?», once casillas
+  cuadradas de 44px del 0 al 10 —la elegida con **borde naranja y fondo tenue**,
+  no con placa naranja—, extremos rotulados en mono («Nada probable» / «Muy
+  probable»), y un área de comentario que **solo aparece al elegir nota**, para
+  que el bloque no parezca un formulario largo antes de empezar. El botón de
+  enviar es secundario: el naranja de esta pantalla es del bloque de pago. Al
+  enviar, el bloque se sustituye por un agradecimiento; la respuesta es inmutable.
 - **Bloque de pago**: importe grande, chip de estado, y las vías reales:
   - *Opción 1 · Coordinar por WhatsApp*: botón que abre WhatsApp del organizador con el
     mensaje ya escrito (referencia, evento, categoría, monto).
@@ -365,6 +380,9 @@ el código debe ser lo primero y lo más grande.
   «Fotos del evento» (fantasma).
 - **Estado sin resultados**: bloque centrado con `—:—:—` y la explicación de si están en
   revisión o el organizador aún no los cargó.
+- Al pie, **la misma encuesta** que la ficha de inscripción, si aún no ha
+  respondido. Está en las dos pantallas a propósito: sin correos, hay que
+  aprovechar las dos ocasiones en que el corredor entra por su cuenta.
 
 ### 6.6 Certificados — `/portal/certificados`
 Lista de carreras finalizadas. Cada fila: nombre + distancia, fecha en mono, y a la
@@ -375,6 +393,32 @@ que va a fallar.
 ### 6.7 Notificaciones — `/portal/notificaciones`
 Lista de avisos con título, mensaje, fecha y enlace. Los no leídos se distinguen con
 borde de acento. Contador de no leídos en la cabecera.
+
+### 6.7 bis Mis acompañantes — `/portal/acompanantes`
+
+**Función:** inscribir a un hijo o a la pareja sin obligarles a crear cuenta. El
+titular da de alta a las personas por las que responde, con sus datos de corredor
+—nombre, fecha de nacimiento, sexo, documento, talla, tipo de sangre y contacto de
+emergencia—, y a partir de ahí puede inscribirlas junto a él.
+
+Lista de acompañantes con sus datos y acciones de editar y quitar, más el
+formulario de alta. Un acompañante no tiene correo propio al que escribir: en el
+panel del organizador aparece marcado como «Acompañante de {titular}» con el
+teléfono del adulto responsable, que es a quién hay que llamar.
+
+### 6.7 ter Ficha del grupo — `/portal/grupos/[id]`
+
+**Función:** una inscripción familiar se paga de una sola vez. Esta es la pantalla
+donde el titular ve a los suyos y paga por todos.
+
+- Lista de personas del grupo —el titular primero, el resto por dorsal— con su
+  categoría, talla, dorsal y QR cuando ya lo tienen.
+- **Bloque de pago del grupo**, idéntico al de una inscripción suelta pero con el
+  importe sumado y la nota de a cuántas personas cubre. Las vías son las mismas:
+  WhatsApp con el mensaje precargado, o subir un comprobante.
+- Desde la ficha de una inscripción que pertenece a un grupo **no se puede pagar
+  suelta**: aparece un aviso que remite aquí. Si hubiera dos caminos abiertos para
+  el mismo dinero, el organizador vería dos pagos y no sabría cuál aprobar.
 
 ### 6.8 Perfil deportivo — `/portal/perfil`
 Formulario largo agrupado en secciones con título:
@@ -423,7 +467,10 @@ línea fuerte; cada segmento con su número en mono y su nombre en versalitas.
   aparecen deshabilitadas con el motivo.
 - **Paso 2 · Tus datos** — tarjeta con el nombre y correo ya cargados del perfil y enlace
   «Editar mis datos →» en cian; selector de talla con inventario disponible entre
-  paréntesis; y campos opcionales Club, Equipo y Alergias.
+  paréntesis; y campos opcionales Club, Equipo y Alergias. Debajo, **«Inscribir
+  acompañantes»**: los que el titular tenga dados de alta en `/portal/acompanantes`
+  aparecen como casillas con su propia categoría y talla, para meterlos en la
+  misma operación y **con un solo pago**.
 - **Paso 3 · Firma** — texto completo de la declaración de salud en caja con scroll y su
   número de versión; si el corredor es menor, bloque ámbar con los datos del tutor;
   **lienzo de firma blanco** con trazo oscuro y enlace «Borrar»; casilla de aceptación; y
@@ -441,7 +488,8 @@ Navegación lateral en tres grupos. **El operador ve un subconjunto**: se le ocu
 Inventario, Lista de espera, Cupones, Fotos y todo el grupo «Análisis y administración».
 
 ```
-Resumen · Carreras · Inscritos [· Inventario de prendas · Lista de espera · Cupones]
+Resumen · Avisos · Carreras · Inscritos
+  [· Inventario de prendas · Lista de espera · Cupones · Insignias]
 DÍA DE CARRERA
   Control de asistencia · Entrega de kits · Resultados [· Fotos]
 ANÁLISIS Y ADMINISTRACIÓN            (solo administrador)
@@ -495,13 +543,13 @@ pública».
 | **Tallas** | `…/tallas` | Alta de tallas con inventario, y **tabla de inventario** con comprometidas, disponibles y aviso en ámbar/rojo cuando una talla se está agotando. |
 | **Patrocinadores** | `…/patrocinadores` | Alta de logo, nombre y URL. Los logos se muestran **sobre placa clara**. |
 | **Declaración de salud** | `…/declaracion` | Editor del texto legal que firma cada corredor, con número de versión. |
-| **Inscritos** | `…/inscritos` | Filtros (búsqueda, categoría, talla, género, estado de pago) y tabla: Dorsal · Corredor (nombre + correo) · Categoría · Talla · Género · Inscrito · Pago (chip + monto) · Kit · Gestionar. Botón «Exportar CSV». |
+| **Inscritos** | `…/inscritos` | Filtros (búsqueda, categoría, talla, género, edad, estado de pago, kit, asistencia, dorsal y **nuevos/recurrentes**) y tabla: Dorsal · Corredor (nombre + correo, con marca mono cian **«Repite · N»** en quien ya corrió contigo) · Categoría · Talla · Género · Edad · Inscrito · Pago (chip + monto) · Kit · Gestionar. Encima, el resumen con las cifras de cabecera y el bloque **«Participantes nuevos y recurrentes»**, todo respondiendo a los filtros. Botón «Exportar a Excel». |
 | **Inscribir en mesa** | `…/inscribir` | Alta presencial el día del evento: datos mínimos del corredor, categoría, talla y método de cobro. |
 | **Transferir inscripción** | `…/transferir` | Ceder la plaza de un corredor a otra persona, con firma de la nueva declaración. |
 | **Entrega de kits** | `…/checkin` | **Escáner de QR con la cámara** en recuadro cuadrado, búsqueda alternativa por número de dorsal, y **ficha grande del corredor** al leer: dorsal enorme, nombre, categoría, **talla en bloque destacado**, y botón de confirmación. Avisa si el kit ya se entregó (ámbar) o si la inscripción está anulada (rojo). |
 | **Lista de espera** | `…/lista-espera` | Tabla con posición, corredor, categoría, cuándo se apuntó, estado y acciones (notificar / expirar). |
-| **Resultados** | `…/resultados` | Carga de CSV del cronometraje y tabla: Pos. · Dorsal · Corredor · Categoría · Pos. cat. · Tiempo. Botón de publicar. |
-| **Métricas** | `…/metricas` | Cuatro cifras (Inscritos, Conversión de pago, Recaudado, Kits entregados), **medidores de ocupación por categoría**, gráfico de área de inscripciones por día, y seis gráficos de barras: Rango de edad, Género, Demanda por talla, Nivel de experiencia, Cómo se enteraron, Ciudad de residencia. Cada gráfico tiene un `<details>` «Ver como tabla» para accesibilidad. |
+| **Resultados** | `…/resultados` | Carga de CSV del cronometraje y tabla: Pos. · Dorsal · Corredor · Categoría · Pos. cat. · Tiempo. Botones de publicar, despublicar y recalcular posiciones, y **«Descargar todos los certificados (ZIP)»** una vez la carrera está finalizada; antes, una línea explicando por qué todavía no. |
+| **Métricas** | `…/metricas` | **Filtro de periodo** arriba (Todo / Últimos 7 / Últimos 30 días, más dos campos de fecha), que acota todo lo de la pantalla por fecha de inscripción. Cuatro cifras (Inscritos, Conversión de pago, Recaudado, Kits entregados); bloque **«Corredores nuevos y recurrentes»** con barra de dos tramos; bloque **«Satisfacción de los corredores»** con el NPS, la nota media, el reparto promotores/pasivos/detractores y los comentarios anónimos desplegables; **medidores de ocupación por categoría**; gráfico de área de inscripciones por día; y siete gráficos de barras: Rango de edad, Género, Demanda por talla, Nivel de experiencia, Cómo se enteraron, Ciudad de residencia y Nacionalidad. Cada gráfico tiene un `<details>` «Ver como tabla» para accesibilidad. |
 
 ### 8.5 Módulos de primer nivel (funcionan sin entrar en una carrera)
 Todos comparten el patrón: **cabecera de módulo** (título + descripción larga explicando
@@ -514,6 +562,7 @@ cuando la empresa no tiene carreras.
 | **Inventario de prendas** | `/panel/inventario` | Cuántas camisetas se comprometieron por talla y cuántas quedan, con alerta al agotarse. |
 | **Lista de espera** | `/panel/lista-espera` | La cola de todas las carreras. |
 | **Cupones** | `/panel/cupones` | Alta de códigos (porcentaje o monto fijo, caducidad, tope de usos) y lista con chip de estado calculado: Activo / Aún no empieza / Caducado / Agotado / Desactivado. |
+| **Insignias** | `/panel/insignias` | Reconocimientos de fidelidad **de esta empresa**. Alta con nombre, código, descripción, icono y criterio: completar N carreras tuyas, acumular N km, hacer una de N km, o volver N años distintos. Lista con chip Activa/Desactivada, cuántos corredores la tienen y desde cuándo. Al pie, botones para repartirla en carreras ya cerradas —el reparto normal ocurre solo al marcar una carrera como finalizada—. Una insignia ya ganada no se borra, se desactiva. |
 | **Control de asistencia** | `/panel/asistencia` | Escáner para registrar quién llegó de verdad a correr. Es distinto de la entrega del kit. |
 | **Entrega de kits** | `/panel/checkin` | Escáner de kits sobre la carrera elegida. |
 | **Resultados** | `/panel/resultados` | Carga de tiempos por carrera. |
@@ -531,7 +580,7 @@ Navegación: Resumen · Empresas · Usuarios · Bitácora.
 | Pantalla | Ruta | Contenido |
 |---|---|---|
 | **Resumen** | `/admin` | Cuatro cifras consolidadas de **toda la plataforma**: Empresas activas, Eventos publicados, Inscripciones activas, Recaudado. Gráfico de inscripciones por mes y gráfico de barras horizontales «Empresas con más inscripciones». Pie con accesos a Gestionar empresas, Usuarios y Bitácora. |
-| **Empresas** | `/admin/empresas` | Formulario de alta (Nombre comercial, Identificador de URL, Correo de contacto, Teléfono) y lista de empresas con chip de estado (Activa / Suspendida / En prueba). |
+| **Empresas** | `/admin/empresas` | Formulario de alta (Nombre comercial, Correo de contacto, Teléfono, RTN) y lista de empresas con chip de estado (Activa / Suspendida / En prueba). **El identificador de URL no se pide**: sale del nombre comercial, y bajo el campo se ve en vivo la dirección que va a quedar (`/organizadores/…`). Si esa dirección ya está cogida, el servidor le añade un número, y el texto de apoyo lo advierte. Se puede cambiar después en la ficha de la empresa. |
 | **Ficha de empresa** | `/admin/empresas/[id]` | Bloques: **Identidad** (logo sobre placa clara, colores de marca primario y secundario), **Datos de la empresa** (nombre, slug, RTN, correo, teléfono, estado), **Invitar al equipo** (correo + rol) y tabla de **Equipo**: Persona · Rol · Estado · Acciones. |
 | **Usuarios** | `/admin/usuarios` | Tabla global: Persona · Empresas a las que pertenece · Rol de plataforma · Alta. |
 | **Bitácora** | `/admin/auditoria` | Registro inmutable de acciones sensibles. Fila de píldoras de filtro por tipo de acción (Todo · Inscripción creada · Inscripción anulada · Pago confirmado · Pago rechazado · Pago reembolsado · Pago anulado · Pago en verificación · Pago pendiente) y tabla: Cuándo · Quién · Acción · Empresa · Detalle. Estado vacío «Sin registros todavía». |

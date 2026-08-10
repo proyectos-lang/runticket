@@ -4,8 +4,6 @@ import { CabeceraModulo, EstadoVacio } from "@/components/panel/EstadoVacio";
 import { SelectorEvento } from "@/components/panel/SelectorEvento";
 import { ModuloCheckin } from "@/components/modulos/ModuloCheckin";
 
-export const dynamic = "force-dynamic";
-
 export default async function AsistenciaPage({
   searchParams,
 }: {

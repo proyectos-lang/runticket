@@ -4,8 +4,6 @@ import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { prefijoEvento } from "@/lib/storage/rutas";
 import { GestorImagenes } from "./GestorImagenes";
 
-export const dynamic = "force-dynamic";
-
 export default async function ImagenesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

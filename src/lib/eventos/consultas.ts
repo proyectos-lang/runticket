@@ -1,5 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import { cacheLife, cacheTag } from "next/cache";
+import { createPublicClient, TAG_EVENTOS, tagEvento } from "@/lib/supabase/publico";
 import type { Disciplina, EstadoEvento } from "@/lib/supabase/database.types";
+
+/**
+ * Estas consultas son **el catálogo público** y van todas cacheadas.
+ *
+ * Antes cada visita a la portada o a una ficha de carrera disparaba entre tres y
+ * seis consultas a Supabase, y con `force-dynamic` en cada página no se
+ * reaprovechaba ninguna: mil visitantes eran mil catálogos idénticos traídos mil
+ * veces. Ahora se calcula una vez por ventana y se sirve desde caché.
+ *
+ * Van con `cacheTag` además de con vida limitada porque hay cambios que no
+ * pueden esperar a que expire el plazo: publicar una carrera, cambiarle la fecha
+ * o cerrarla tiene que verse ya. El panel invalida la etiqueta al guardar.
+ *
+ * **Ninguna puede leer cookies**: usan `createPublicClient()`, que consulta como
+ * anónimo. Ver la nota de `lib/supabase/publico.ts`.
+ */
 
 export type EmpresaResumen = {
   id: string;
@@ -55,7 +72,15 @@ export function separarPorFecha<T extends { fechaInicio: string }>(eventos: T[])
 const ESTADOS_PUBLICOS: EstadoEvento[] = ["publicado", "inscripciones_cerradas", "finalizado"];
 
 export async function listarEventosPublicos(filtros: FiltrosEventos = {}): Promise<EventoPublico[]> {
-  const supabase = await createClient();
+  "use cache";
+  // Los filtros forman parte de la clave, así que cada combinación tiene su
+  // entrada. Vida corta a propósito: los cupos y los tramos de precio cambian
+  // solos con el reloj, y una entrada por combinación con vida larga acumularía
+  // catálogos viejos de filtros que nadie vuelve a pedir.
+  cacheLife("minutes");
+  cacheTag(TAG_EVENTOS);
+
+  const supabase = createPublicClient();
 
   let query = supabase
     .from("eventos")
@@ -148,7 +173,11 @@ export async function listarEventosPublicos(filtros: FiltrosEventos = {}): Promi
  * siguiente—.
  */
 export async function contarPorDisciplina(): Promise<Record<string, number>> {
-  const supabase = await createClient();
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(TAG_EVENTOS);
+
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("eventos")
     .select("disciplina")
@@ -161,7 +190,13 @@ export async function contarPorDisciplina(): Promise<Record<string, number>> {
 
 /** Solo los departamentos que tienen alguna carrera: el resto estorba. */
 export async function departamentosConCarreras(): Promise<{ id: string; nombre: string }[]> {
-  const supabase = await createClient();
+  "use cache";
+  // El catálogo geográfico apenas se mueve; lo que cambia es qué departamentos
+  // tienen carrera, y eso va con la etiqueta de eventos.
+  cacheLife("hours");
+  cacheTag(TAG_EVENTOS);
+
+  const supabase = createPublicClient();
   const { data: eventos } = await supabase
     .from("eventos")
     .select("departamento_id")
@@ -188,9 +223,18 @@ export type CategoriaConCupo = {
   cupos_disponibles: number | null;
 };
 
-/** Usa la función security definer: `inscripciones` no es legible por anon. */
+/**
+ * Usa la función security definer: `inscripciones` no es legible por anon.
+ *
+ * **Deliberadamente sin cachear.** Es la única consulta pública que se queda
+ * fuera, porque el requisito 3.4 pide cupos en tiempo real y una plaza que ya no
+ * existe es justo el dato que no se puede servir viejo: el corredor llegaría al
+ * formulario, lo llenaría y se lo rechazaría la transacción de cupo. Quien la
+ * llama la envuelve en `<Suspense>`, así que el resto de la ficha se sirve
+ * cacheada y solo esto se calcula en cada visita.
+ */
 export async function categoriasConCupo(eventoId: string): Promise<CategoriaConCupo[]> {
-  const supabase = await createClient();
+  const supabase = createPublicClient();
   const { data } = await supabase.rpc("categorias_con_cupo", { p_evento_id: eventoId });
   return (data as CategoriaConCupo[] | null) ?? [];
 }
@@ -205,7 +249,13 @@ export type PuntoEntrega = {
 };
 
 export async function puntosDeEntrega(eventoId: string): Promise<PuntoEntrega[]> {
-  const supabase = await createClient();
+  "use cache";
+  // Dónde se recoge el kit no cambia de un minuto a otro, y esto lo pide tanto
+  // la ficha pública como la del corredor en su portal.
+  cacheLife("hours");
+  cacheTag(TAG_EVENTOS);
+
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("evento_puntos_entrega")
     .select("id, nombre, direccion, horario, lat, lng")
@@ -215,7 +265,13 @@ export async function puntosDeEntrega(eventoId: string): Promise<PuntoEntrega[]>
 }
 
 export async function getEventoPorSlug(slug: string) {
-  const supabase = await createClient();
+  "use cache";
+  // Etiqueta propia además de la general: al guardar los datos de una carrera se
+  // invalida solo la suya, sin tirar el catálogo entero de la plataforma.
+  cacheLife("hours");
+  cacheTag(TAG_EVENTOS, tagEvento(slug));
+
+  const supabase = createPublicClient();
   const { data } = await supabase.from("eventos").select("*").eq("slug", slug).maybeSingle();
   return data;
 }

@@ -123,6 +123,69 @@ export async function cambiarTalla(
   return { status: "guardado" };
 }
 
+export type EncuestaState = { status: "idle" | "error" | "enviada"; message?: string };
+
+const encuestaSchema = z.object({
+  puntaje: z.coerce.number().int().min(0).max(10),
+  comentario: z.string().trim().max(600).optional().or(z.literal("")),
+});
+
+/**
+ * La encuesta post-evento (9.5).
+ *
+ * Se escribe con el cliente del usuario a propósito: la política de la 0008 solo
+ * deja insertar al dueño de la inscripción, y esa comprobación es justo la que
+ * queremos que se aplique. No hay `update` en ninguna parte porque la tabla no
+ * lo concede a nadie —la respuesta es inmutable una vez enviada—, así que el
+ * segundo envío choca con el índice único y se traduce a un mensaje claro en vez
+ * de a un error de base de datos.
+ */
+export async function responderEncuesta(
+  inscripcionId: string,
+  _prevState: EncuestaState,
+  formData: FormData
+): Promise<EncuestaState> {
+  const parsed = encuestaSchema.safeParse({
+    puntaje: formData.get("puntaje"),
+    comentario: formData.get("comentario"),
+  });
+  if (!parsed.success) {
+    return { status: "error", message: "Elige una nota del 0 al 10 antes de enviar." };
+  }
+
+  const supabase = await createClient();
+
+  // El evento sale de la inscripción y no del formulario: si viniera de fuera,
+  // cualquiera podría colgar su respuesta de la carrera de otro.
+  const { data: inscripcion } = await supabase
+    .from("inscripciones")
+    .select("id, evento_id")
+    .eq("id", inscripcionId)
+    .maybeSingle();
+  if (!inscripcion) {
+    return { status: "error", message: "No encontramos esa inscripción." };
+  }
+
+  const { error } = await supabase.from("encuestas_satisfaccion").insert({
+    evento_id: inscripcion.evento_id,
+    inscripcion_id: inscripcion.id,
+    puntaje_nps: parsed.data.puntaje,
+    comentario: parsed.data.comentario || null,
+  });
+
+  if (error) {
+    // 23505 es la violación del índice único por inscripción.
+    if (error.code === "23505") {
+      return { status: "error", message: "Ya habías respondido esta encuesta. Gracias." };
+    }
+    return { status: "error", message: "No se pudo enviar tu respuesta: " + error.message };
+  }
+
+  revalidatePath(`/portal/inscripciones/${inscripcionId}`);
+  revalidatePath(`/portal/inscripciones/${inscripcionId}/resultado`);
+  return { status: "enviada" };
+}
+
 // Aquí vivía `urlFirmadaComprobante(ruta)`. Se ha eliminado: no la invocaba
 // nadie y era la única acción del proyecto sin comprobación alguna. Aceptaba una
 // ruta arbitraria del cliente y devolvía una URL firmada del bucket privado

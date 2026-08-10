@@ -1,8 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { TAG_EVENTOS, tagEvento } from "@/lib/supabase/publico";
 import { requireAdminEmpresaActivo, requireAdminDeEvento } from "@/lib/auth/session";
 import type { EstadoEvento } from "@/lib/supabase/database.types";
 import { crearEventoSchema } from "@/lib/validacion/eventos";
@@ -101,11 +102,39 @@ export async function cambiarEstadoEvento(eventoId: string, nuevoEstado: EstadoE
   const { error } = await supabase.from("eventos").update({ estado: nuevoEstado }).eq("id", eventoId);
   if (error) throw new Error("No se pudo actualizar el estado: " + error.message);
 
+  // Sin correos, la encuesta se pide por la campana del portal. Dar la carrera
+  // por finalizada es el único momento en que tiene sentido preguntar, así que
+  // el reparto cuelga de aquí. La función es idempotente: reabrir y volver a
+  // cerrar no genera avisos repetidos.
+  //
+  // No se deja reventar la transición si el reparto falla: el estado del evento
+  // ya está guardado y perder la carrera por un aviso sería desproporcionado.
+  if (nuevoEstado === "finalizado") {
+    const [{ error: errorAviso }, { error: errorInsignias }] = await Promise.all([
+      supabase.rpc("avisar_encuesta_pendiente", { p_evento_id: eventoId }),
+      // Mismo momento y mismo motivo: la carrera ya cuenta como corrida, así que
+      // es cuando los umbrales de fidelidad pueden haberse cruzado.
+      supabase.rpc("otorgar_insignias_de_evento", { p_evento_id: eventoId }),
+    ]);
+    if (errorAviso) {
+      console.error("No se pudo repartir el aviso de encuesta:", errorAviso.message);
+    }
+    if (errorInsignias) {
+      console.error("No se pudieron conceder las insignias:", errorInsignias.message);
+    }
+  }
+
   revalidatePath(`/panel/eventos/${eventoId}`, "layout");
   revalidatePath("/panel/eventos");
-  // Publicar o cerrar cambia lo que ve el público: hay que revalidar su portada.
-  if (evento?.slug) revalidatePath(`/eventos/${evento.slug}`);
+  // Publicar o cerrar cambia lo que ve el público: hay que revalidar su portada
+  // y, sobre todo, la caché de datos del catálogo. Sin la etiqueta, publicar una
+  // carrera no la haría aparecer hasta que el catálogo cacheado expirara solo.
+  if (evento?.slug) {
+    revalidatePath(`/eventos/${evento.slug}`);
+    updateTag(tagEvento(evento.slug));
+  }
   revalidatePath("/eventos");
   revalidatePath("/");
+  updateTag(TAG_EVENTOS);
 }
 

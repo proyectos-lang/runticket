@@ -17,8 +17,6 @@ import { cambiarEstadoPago } from "./actions";
 import { RegistrarPagoForm } from "./RegistrarPagoForm";
 import { Boton } from "@/components/ui/Boton";
 
-export const dynamic = "force-dynamic";
-
 export default async function PagosPage({
   searchParams,
 }: {

@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/server";
+import { cacheLife, cacheTag } from "next/cache";
+import { createPublicClient, tagOrganizador } from "@/lib/supabase/publico";
 import { listarEventosPublicos, separarPorFecha } from "@/lib/eventos/consultas";
 import { TarjetaCarrera } from "@/components/publico/TarjetaCarrera";
 import { PlacaLogo } from "@/components/ui/Datos";
 import { Aviso } from "@/components/ui/Aviso";
 
-export const dynamic = "force-dynamic";
-
+/** La ficha del organizador es pública e igual para todos: se cachea. */
 async function cargarEmpresa(slug: string) {
-  const supabase = await createClient();
+  "use cache";
+  cacheLife("hours");
+  cacheTag(tagOrganizador(slug));
+
+  const supabase = createPublicClient();
   const { data } = await supabase
     .from("empresas")
     .select("id, nombre_comercial, slug, logo_url, correo_contacto, telefono_contacto, estado")
@@ -47,7 +52,20 @@ export async function generateMetadata({
   };
 }
 
-export default async function OrganizadorPage({ params }: { params: Promise<{ slug: string }> }) {
+/**
+ * Toda la página depende del organizador de la URL, y `params` solo se conoce en
+ * la petición. Así que lo que se prerenderiza es el hueco, y el contenido —que
+ * sí sale de consultas cacheadas— se envía justo detrás.
+ */
+export default function OrganizadorPage({ params }: { params: Promise<{ slug: string }> }) {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-5xl px-6 py-10" />}>
+      <Organizador params={params} />
+    </Suspense>
+  );
+}
+
+async function Organizador({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const empresa = await cargarEmpresa(slug);
   if (!empresa) notFound();

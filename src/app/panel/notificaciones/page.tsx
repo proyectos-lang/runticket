@@ -5,8 +5,6 @@ import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { marcarLeida, marcarTodasLeidas } from "./actions";
 
-export const dynamic = "force-dynamic";
-
 export default async function NotificacionesPanelPage() {
   const supabase = await createClient();
 

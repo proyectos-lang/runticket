@@ -6,8 +6,6 @@ import { EtiquetaMono } from "@/components/ui/Datos";
 import { PlacaAmbito } from "@/components/admin/Chips";
 import { CambiarPasswordForm } from "./CambiarPasswordForm";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Mi cuenta | RunTicket",
   robots: { index: false },

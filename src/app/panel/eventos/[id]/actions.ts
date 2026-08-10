@@ -1,8 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { TAG_EVENTOS, tagEvento } from "@/lib/supabase/publico";
 import { requireAdminDeEvento } from "@/lib/auth/session";
 import {
   editarEventoSchema,
@@ -27,7 +28,20 @@ export type EventoState = {
   errors?: Record<string, string[] | undefined>;
 };
 
-/** Revalida el panel y también las rutas públicas que dependen del slug. */
+/**
+ * Revalida el panel y también lo público que dependa de esta carrera.
+ *
+ * Las rutas ya no bastan: desde que el catálogo público va cacheado por
+ * **datos** y no por página (ver `lib/eventos/consultas.ts`), invalidar
+ * `/eventos` deja intacta la consulta que lo alimenta y la portada seguiría
+ * enseñando la carrera vieja hasta que expirara sola. Se invalidan las dos
+ * cosas: la etiqueta general del catálogo y la propia de esta carrera.
+ *
+ * Va con `updateTag` y no con `revalidateTag` a propósito. Esto se llama desde
+ * acciones del panel, justo después de que alguien haya guardado: quien acaba
+ * de cambiar la fecha de su carrera tiene que ver la fecha nueva al recargar, no
+ * la anterior mientras se regenera por detrás.
+ */
 function revalidarEvento(eventoId: string, slugs: (string | null | undefined)[]) {
   revalidatePath(`/panel/eventos/${eventoId}`, "layout");
   revalidatePath("/panel/eventos");
@@ -35,9 +49,11 @@ function revalidarEvento(eventoId: string, slugs: (string | null | undefined)[])
     revalidatePath(`/eventos/${slug}`);
     revalidatePath(`/eventos/${slug}/inscripcion`);
     revalidatePath(`/eventos/${slug}/resultados`);
+    updateTag(tagEvento(slug));
   }
   revalidatePath("/eventos");
   revalidatePath("/");
+  updateTag(TAG_EVENTOS);
 }
 
 export async function actualizarEvento(

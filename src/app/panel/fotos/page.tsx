@@ -4,8 +4,6 @@ import { contextoModulo } from "@/lib/panel/contexto";
 import { CabeceraModulo, EstadoVacio } from "@/components/panel/EstadoVacio";
 import { SelectorEvento } from "@/components/panel/SelectorEvento";
 
-export const dynamic = "force-dynamic";
-
 export default async function FotosPage({
   searchParams,
 }: {

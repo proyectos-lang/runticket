@@ -5,8 +5,6 @@ import { PildoraEnlace } from "@/components/ui/Pildora";
 import { BotonEnlace } from "@/components/ui/Boton";
 import Link from "next/link";
 
-export const dynamic = "force-dynamic";
-
 const PESTANAS: { clave: ClaseCarrera; etiqueta: string }[] = [
   { clave: "proxima", etiqueta: "Próximas" },
   { clave: "finalizada", etiqueta: "Finalizadas" },

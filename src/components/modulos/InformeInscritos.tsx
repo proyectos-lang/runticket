@@ -109,7 +109,20 @@ export async function InformeInscritos({
                       {f.numeroDorsal ?? "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-texto">{f.nombre}</p>
+                      <p className="flex flex-wrap items-center gap-2 font-medium text-texto">
+                        {f.nombre}
+                        {/* Solo se marca al que repite. Poner también «nuevo» en
+                            cada fila de una carrera primeriza llenaría la tabla
+                            de una etiqueta que no distingue nada. */}
+                        {f.recurrente && (
+                          <span
+                            className="font-mono text-[0.625rem] uppercase tracking-etiqueta text-cian"
+                            title={`Ya corrió ${f.carrerasPrevias} ${f.carrerasPrevias === 1 ? "carrera tuya" : "carreras tuyas"}`}
+                          >
+                            Repite · {f.carrerasPrevias}
+                          </span>
+                        )}
+                      </p>
                       {/* Un acompañante no tiene correo propio al que escribir:
                           lo que el organizador necesita es a quién llamar. */}
                       {f.gestionadoPor ? (

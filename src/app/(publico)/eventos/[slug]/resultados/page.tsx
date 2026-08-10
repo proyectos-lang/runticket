@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { cacheLife, cacheTag } from "next/cache";
+import { createPublicClient, tagEvento } from "@/lib/supabase/publico";
 import { formatFechaMono } from "@/lib/format";
 import { PodioResultados } from "@/components/publico/PodioResultados";
 import { EtiquetaMono } from "@/components/ui/Datos";
@@ -9,10 +11,21 @@ import { BotonEnlace } from "@/components/ui/Boton";
 import type { ResultadoPublico } from "@/lib/supabase/database.types";
 import { BuscadorResultados } from "./BuscadorResultados";
 
-export const dynamic = "force-dynamic";
-
+/**
+ * Los resultados de una carrera ya corrida son el contenido más estable del
+ * sitio y a la vez el que más se comparte: cuando el organizador los publica,
+ * cientos de personas abren la misma tabla a la vez. Cachearla es justo lo que
+ * hace que ese pico no se convierta en cientos de consultas idénticas.
+ *
+ * La etiqueta de la carrera cubre la publicación: el panel la invalida al
+ * publicar o despublicar, así que el cambio se ve en el acto.
+ */
 async function cargar(slug: string) {
-  const supabase = await createClient();
+  "use cache";
+  cacheLife("hours");
+  cacheTag(tagEvento(slug));
+
+  const supabase = createPublicClient();
   const { data: evento } = await supabase
     .from("eventos")
     .select("id, nombre, slug, fecha_inicio, zona_horaria")
@@ -38,11 +51,19 @@ export async function generateMetadata({
   };
 }
 
-export default async function ResultadosPublicosPage({
+export default function ResultadosPublicosPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  return (
+    <Suspense fallback={<div className="min-h-svh" />}>
+      <Resultados params={params} />
+    </Suspense>
+  );
+}
+
+async function Resultados({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const datos = await cargar(slug);
   if (!datos) notFound();

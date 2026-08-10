@@ -21,8 +21,6 @@ export const metadata: Metadata = {
   description: "Explora las próximas carreras y eventos deportivos e inscríbete en línea.",
 };
 
-export const dynamic = "force-dynamic";
-
 /** "10-21" → { min: 10, max: 21 }; "21-" → { min: 21 } */
 function parseDistancia(valor?: string) {
   if (!valor) return {};
@@ -45,7 +43,21 @@ type Busqueda = {
   vista?: string;
 };
 
-export default async function EventosPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
+/**
+ * El catálogo se ordena y se filtra por la URL, y `searchParams` solo existe en
+ * la petición. Lo que sí está resuelto de antemano son las consultas: las tres
+ * van cacheadas por combinación de filtros, así que abrir el listado con los
+ * filtros de siempre no vuelve a preguntarle nada a la base.
+ */
+export default function EventosPage({ searchParams }: { searchParams: Promise<Busqueda> }) {
+  return (
+    <Suspense fallback={<div className="min-h-svh" />}>
+      <Catalogo searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function Catalogo({ searchParams }: { searchParams: Promise<Busqueda> }) {
   const p = await searchParams;
 
   const [eventos, conteoDisciplinas, departamentos] = await Promise.all([

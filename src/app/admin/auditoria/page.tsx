@@ -2,8 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { formatFechaHora } from "@/lib/format";
 import { PildoraEnlace } from "@/components/ui/Pildora";
 
-export const dynamic = "force-dynamic";
-
 const POR_PAGINA = 100;
 
 /** Etiquetas legibles para las acciones que la aplicación registra. */

@@ -4,8 +4,6 @@ import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { CategoriaForm } from "./CategoriaForm";
 import { ListaCategorias } from "./ListaCategorias";
 
-export const dynamic = "force-dynamic";
-
 export default async function CategoriasPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();

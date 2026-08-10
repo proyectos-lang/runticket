@@ -134,8 +134,78 @@ export type MetricasEvento = {
   por_origen: Record<string, number>;
   por_rango_edad: Record<string, number>;
   por_ciudad: Record<string, number>;
+  por_nacionalidad: Record<string, number>;
+  /**
+   * Cuántos corredores distintos repiten con esta empresa y cuántos vienen por
+   * primera vez. Se cuenta por empresa organizadora, no por plataforma: ver la
+   * nota de la migración 0029.
+   */
+  recurrencia: { corredores: number; recurrentes: number; nuevos: number };
   inscripciones_por_dia: Record<string, number>;
 };
+/**
+ * Totales cobrados de un evento, agregados en la base.
+ *
+ * A diferencia de `resumirConciliacion`, que suma en memoria una lista de pagos,
+ * esta contempla el **pago familiar**: los que cuelgan del grupo y no de una
+ * inscripción concreta. Ver la migración 0029.
+ */
+export type ConciliacionEvento = {
+  total_pagado: number;
+  total_pendiente: number;
+  total_en_verificacion: number;
+  /** Inscripciones activas cuyo último intento de pago quedó en «pagado». */
+  inscripciones_pagadas: number;
+  por_metodo: { metodo: MetodoPago; total: number; cantidad: number }[];
+  por_dia: { dia: string; total: number; cantidad: number }[];
+};
+
+/**
+ * Resultado de la encuesta post-evento.
+ *
+ * `nps` va de -100 a +100 y es el porcentaje de promotores (9-10) menos el de
+ * detractores (0-6); no es la media de las notas, que es `promedio`. Es null sin
+ * respuestas: un NPS de 0 con cero respuestas se leería como «neutro» cuando lo
+ * que pasa es que no se sabe.
+ *
+ * Los comentarios llegan **sin autor**: ver la nota de la migración 0030.
+ */
+export type NpsEvento = {
+  respuestas: number;
+  /** Inscritos activos a los que se les pudo preguntar, para leer la tasa. */
+  invitados: number;
+  promotores: number;
+  pasivos: number;
+  detractores: number;
+  nps: number | null;
+  promedio: number | null;
+  comentarios: { puntaje: number; comentario: string | null; respondido_en: string }[];
+};
+
+/**
+ * Vocabulario cerrado de condiciones para ganar una insignia (9.6).
+ *
+ * Cerrado a propósito, y validado también por un `check` en la base: ver la nota
+ * de la migración 0031. Todo se mide **contra carreras de la misma empresa**.
+ */
+export type TipoCriterioInsignia =
+  | "carreras_completadas"
+  | "distancia_acumulada"
+  | "distancia_en_una_carrera"
+  | "anos_distintos";
+
+export type CriterioInsignia = { tipo: TipoCriterioInsignia; minimo: number };
+
+export type InsigniaDeCorredor = {
+  codigo: string;
+  nombre: string;
+  descripcion: string | null;
+  icono_url: string | null;
+  /** Qué organizador se la concedió; una insignia siempre es de alguien. */
+  empresa: string;
+  obtenida_en: string;
+};
+
 export type NivelExperiencia = "principiante" | "intermedio" | "avanzado" | "competitivo";
 
 export interface Database {
@@ -722,6 +792,66 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      insignias: {
+        Row: {
+          id: string;
+          empresa_id: string;
+          codigo: string;
+          nombre: string;
+          descripcion: string | null;
+          criterio: CriterioInsignia;
+          icono_url: string | null;
+          activa: boolean;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: {
+          empresa_id: string;
+          codigo: string;
+          nombre: string;
+          descripcion?: string | null;
+          criterio: CriterioInsignia;
+          icono_url?: string | null;
+          activa?: boolean;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["insignias"]["Insert"]>;
+        Relationships: [];
+      };
+      usuario_insignias: {
+        Row: {
+          id: string;
+          usuario_id: string;
+          insignia_id: string;
+          evento_id: string | null;
+          obtenida_en: string;
+        };
+        /** Las concede el servidor al finalizar una carrera, nunca el cliente. */
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      encuestas_satisfaccion: {
+        Row: {
+          id: string;
+          evento_id: string;
+          inscripcion_id: string;
+          puntaje_nps: number;
+          comentario: string | null;
+          respondido_en: string;
+          created_at: string;
+        };
+        Insert: {
+          evento_id: string;
+          inscripcion_id: string;
+          puntaje_nps: number;
+          comentario?: string | null;
+        };
+        /** Inmutable una vez enviada: la 0008 no concede UPDATE ni DELETE a nadie. */
+        Update: never;
+        Relationships: [];
+      };
       notificaciones: {
         Row: {
           id: string;
@@ -1003,8 +1133,14 @@ export interface Database {
         Returns: ResultadoPublico[];
       };
       metricas_evento: {
-        Args: { p_evento_id: string };
+        /** `p_desde`/`p_hasta` acotan por fecha de inscripción, en la zona del evento. */
+        Args: { p_evento_id: string; p_desde?: string | null; p_hasta?: string | null };
         Returns: MetricasEvento;
+      };
+      conciliacion_evento: {
+        /** Mismo rango que `metricas_evento`, para que la pantalla no mezcle periodos. */
+        Args: { p_evento_id: string; p_desde?: string | null; p_hasta?: string | null };
+        Returns: ConciliacionEvento;
       };
       registrar_intento_pago: {
         Args: {
@@ -1100,6 +1236,29 @@ export interface Database {
         }[];
       };
       /** Quién gestiona a cada acompañante inscrito en un evento de la empresa. */
+      nps_evento: {
+        Args: { p_evento_id: string };
+        Returns: NpsEvento;
+      };
+      otorgar_insignias_de_evento: {
+        Args: { p_evento_id: string };
+        /** Cuántas insignias nuevas se concedieron; 0 si nadie cruzó un umbral. */
+        Returns: number;
+      };
+      insignias_de_corredor: {
+        Args: Record<string, never>;
+        Returns: InsigniaDeCorredor[];
+      };
+      avisar_encuesta_pendiente: {
+        Args: { p_evento_id: string };
+        /** Cuántos avisos nuevos se repartieron; 0 si ya los tenían todos. */
+        Returns: number;
+      };
+      recurrencia_de_inscritos: {
+        Args: { p_evento_id: string };
+        /** Carreras anteriores **de la misma empresa**, nunca de la plataforma entera. */
+        Returns: { corredor_id: string; carreras_previas: number }[];
+      };
       gestores_de_inscritos: {
         Args: { p_evento_id: string };
         Returns: {

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getPerfilActual } from "@/lib/auth/session";
 import { AppShell } from "@/components/shell/AppShell";
@@ -6,7 +7,16 @@ import { createClient } from "@/lib/supabase/server";
 import { PlacaAmbito } from "@/components/admin/Chips";
 import { Marca } from "@/components/publico/Marca";
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+/** Dinámico de principio a fin; ver la nota del layout del panel. */
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <ConsolaAutenticada>{children}</ConsolaAutenticada>
+    </Suspense>
+  );
+}
+
+async function ConsolaAutenticada({ children }: { children: React.ReactNode }) {
   const perfil = await getPerfilActual();
   if (!perfil) redirect("/login?next=/admin");
   if (perfil.rol_plataforma !== "super_admin") redirect("/");

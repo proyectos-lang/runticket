@@ -7,8 +7,6 @@ import { CabeceraModulo } from "@/components/panel/EstadoVacio";
 import { notFound, redirect } from "next/navigation";
 import { Aviso } from "@/components/ui/Aviso";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Ficha de la empresa desde el panel. Es de solo lectura a propósito: el alta y
  * la edición de empresas son competencia del super-administrador de la

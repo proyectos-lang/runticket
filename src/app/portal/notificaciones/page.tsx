@@ -4,8 +4,6 @@ import { formatFechaHora } from "@/lib/format";
 import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
 import { marcarLeida, marcarTodasLeidas } from "./actions";
 
-export const dynamic = "force-dynamic";
-
 export default async function NotificacionesPage() {
   const supabase = await createClient();
 

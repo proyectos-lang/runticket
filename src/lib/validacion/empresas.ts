@@ -9,15 +9,26 @@ const slugSchema = z
   .max(80)
   .regex(/^[a-z0-9-]+$/, "Usa solo minúsculas, números y guiones.");
 
-export const crearEmpresaSchema = z.object({
+const datosEmpresaSchema = z.object({
   nombreComercial: z.string().trim().min(2, "Introduce el nombre comercial.").max(120),
-  slug: slugSchema,
   correoContacto: opcional(z.email("Correo inválido.")),
   telefonoContacto: opcional(z.string().trim().max(30)),
   rtn: opcional(z.string().trim().max(30)),
 });
 
-export const editarEmpresaSchema = crearEmpresaSchema.extend({
+/**
+ * El alta **no lleva slug**: lo deriva el servidor del nombre comercial y, si ya
+ * está cogido, le añade un número. Pedirlo a mano era hacer que un
+ * super-administrador inventara una dirección en el momento de dar de alta a un
+ * cliente, que es cuando menos le importa y más fácil es equivocarse.
+ *
+ * La edición sí lo lleva: cuando la empresa ya tiene enlaces compartidos,
+ * cambiar su dirección pública es una decisión, no un descuido.
+ */
+export const crearEmpresaSchema = datosEmpresaSchema;
+
+export const editarEmpresaSchema = datosEmpresaSchema.extend({
+  slug: slugSchema,
   colorPrimario: opcional(
     z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Usa un color hexadecimal, por ejemplo #10b981.")
   ),

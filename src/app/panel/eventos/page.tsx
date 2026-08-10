@@ -3,8 +3,6 @@ import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { FilaCarreraPanel } from "@/components/panel/FilaCarreraPanel";
 import { CrearEventoForm } from "./CrearEventoForm";
 
-export const dynamic = "force-dynamic";
-
 export default async function PanelEventosPage() {
   const membresia = await getEmpresaActivaDelPanel();
   const supabase = await createClient();

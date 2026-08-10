@@ -32,6 +32,27 @@ Proyecto Next.js (App Router, TypeScript, Tailwind CSS) preparado para conectars
 
    Abre [http://localhost:3000](http://localhost:3000).
 
+## Caché y renderizado
+
+El proyecto usa **Cache Components** (`cacheComponents: true` en
+`next.config.ts`), así que aquí no hay `revalidate` ni `dynamic = "force-dynamic"`
+por ruta. Las reglas son tres:
+
+1. **Lo público se cachea por datos, no por página.** Las consultas del catálogo
+   viven en `src/lib/eventos/consultas.ts` con `"use cache"`, y usan
+   `src/lib/supabase/publico.ts` — un cliente que **no lee cookies**, porque
+   dentro de un ámbito cacheado no se puede.
+2. **Lo privado va bajo `<Suspense>`.** Los layouts de `/panel`, `/admin`,
+   `/portal` y `(auth)` envuelven todo su contenido, lo que cubre también a sus
+   páginas. Por eso ninguna necesita marcarse una a una.
+3. **Las mutaciones invalidan etiquetas, no rutas.** `revalidatePath("/eventos")`
+   ya no basta: hay que invalidar la etiqueta que alimenta la consulta. Los
+   nombres están en `src/lib/supabase/publico.ts` (`TAG_EVENTOS`, `tagEvento`,
+   `tagOrganizador`) para que quien cachea y quien invalida no se separen.
+
+Excepción deliberada: **los cupos disponibles no se cachean**. Servir una plaza
+que ya no existe manda al corredor a llenar un formulario que va a fallar.
+
 ## Supabase
 
 - `src/lib/supabase/client.ts` — cliente para Client Components.

@@ -7,8 +7,6 @@ import { CargarResultadosForm } from "./CargarResultadosForm";
 import { publicarResultados, recalcularPosiciones } from "./actions";
 import { Boton } from "@/components/ui/Boton";
 
-export const dynamic = "force-dynamic";
-
 export default async function ResultadosPanelPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const membresia = await getEmpresaActivaDelPanel();
@@ -16,7 +14,7 @@ export default async function ResultadosPanelPage({ params }: { params: Promise<
 
   const { data: evento } = await supabase
     .from("eventos")
-    .select("id, nombre, slug")
+    .select("id, nombre, slug, estado")
     .eq("id", id)
     .eq("empresa_id", membresia.empresaId)
     .maybeSingle();
@@ -99,6 +97,22 @@ export default async function ResultadosPanelPage({ params }: { params: Promise<
                 Ver página pública
               </Link>
             </div>
+          )}
+
+          {/* Ancla y no `Link`: es una descarga que genera el servidor, y
+              `next/link` la dispararía con solo pasar el ratón por encima. */}
+          {evento.estado === "finalizado" ? (
+            <a
+              href={`/panel/eventos/${evento.id}/certificados.zip`}
+              className="self-start rounded-full border px-4 py-2 text-sm font-medium border-linea-fuerte text-atenuado hover:bg-superficie-2"
+            >
+              Descargar todos los certificados (ZIP)
+            </a>
+          ) : (
+            <p className="text-sm text-atenuado">
+              Los certificados se pueden descargar en bloque cuando marques la carrera como
+              finalizada.
+            </p>
           )}
         </>
       )}

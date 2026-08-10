@@ -6,8 +6,6 @@ import { SelectorEvento } from "@/components/panel/SelectorEvento";
 import { ComparativaCarreras } from "@/components/modulos/ComparativaCarreras";
 import { BotonEnlace } from "@/components/ui/Boton";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Índice de la lista de espera. Como Métricas y Resultados, deja elegir carrera
  * en vez de meter al usuario en una que no pidió.

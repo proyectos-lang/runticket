@@ -28,6 +28,8 @@ export type FiltrosInscritos = {
   asistencia?: "presente" | "ausente";
   rangoEdad?: RangoEdad;
   dorsal?: "con" | "sin";
+  /** Quién repite con esta empresa y quién viene por primera vez. */
+  recurrencia?: "recurrente" | "nuevo";
 };
 
 /**
@@ -53,6 +55,7 @@ export function filtrosDeParams(params: URLSearchParams): FiltrosInscritos {
     asistencia: entre("asistencia", ["presente", "ausente"] as const),
     rangoEdad: entre("edad", RANGOS_EDAD),
     dorsal: entre("dorsal", ["con", "sin"] as const),
+    recurrencia: entre("recurrencia", ["recurrente", "nuevo"] as const),
   };
 }
 
@@ -90,6 +93,13 @@ export type InscritoFila = {
   codigoQr: string | null;
   /** Inscripciones que comparten un mismo pago familiar. */
   grupoId: string | null;
+  /**
+   * Carreras anteriores **de esta misma empresa** en las que ya participó. Nunca
+   * cuenta lo corrido con otros organizadores: el aislamiento multiempresa lo
+   * impide y, además, sería un dato que no le corresponde ver a quien mira.
+   */
+  carrerasPrevias: number;
+  recurrente: boolean;
   creadoEn: string;
   pago: {
     id: string;
@@ -216,31 +226,61 @@ export async function listarInscritos(
 
   const ids = inscripciones.map((i) => i.id);
   const corredorIds = [...new Set(inscripciones.map((i) => i.corredor_id))];
+  const grupoIds = [...new Set(inscripciones.map((i) => i.grupo_inscripcion_id).filter(Boolean))] as string[];
 
-  const [{ data: perfiles }, { data: pagos }, gestoresPorEvento] = await Promise.all([
-    supabase
-      .from("perfiles")
-      .select("id, nombres, apellidos, correo, telefono, sexo, fecha_nacimiento, documento_identidad, ciudad_id")
-      .in("id", corredorIds),
-    incluirPagos
-      ? supabase
-          .from("pagos")
-          .select(
-            "id, inscripcion_id, estado, metodo, monto, comprobante_url, referencia_externa, verificado_en, created_at"
-          )
-          .in("inscripcion_id", ids)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as never[] }),
-    // Por RPC y no por consulta directa: la política de `acompanantes` es del
-    // titular, no de la empresa, y así debe seguir. La función abre solo lo
-    // imprescindible —los inscritos de un evento suyo— y comprueba la membresía.
-    // Recibe un evento, así que con varias carreras se pregunta por cada una.
-    Promise.all(
-      idsEvento.map((id) => supabase.rpc("gestores_de_inscritos", { p_evento_id: id }))
-    ),
-  ]);
+  const COLUMNAS_PAGO =
+    "id, inscripcion_id, grupo_inscripcion_id, estado, metodo, monto, comprobante_url, referencia_externa, verificado_en, created_at";
+
+  const [{ data: perfiles }, { data: pagos }, { data: pagosGrupo }, gestoresPorEvento, recurrenciaPorEvento] =
+    await Promise.all([
+      supabase
+        .from("perfiles")
+        .select("id, nombres, apellidos, correo, telefono, sexo, fecha_nacimiento, documento_identidad, ciudad_id")
+        .in("id", corredorIds),
+      incluirPagos
+        ? supabase
+            .from("pagos")
+            .select(COLUMNAS_PAGO)
+            .in("inscripcion_id", ids)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as never[] }),
+      // El pago familiar (0028) cuelga del grupo y deja `inscripcion_id` nulo,
+      // así que la consulta de arriba no lo ve. Sin esta segunda, una familia
+      // que pagó de una sola transferencia aparecía entera como «Sin registrar»
+      // y el organizador la perseguía por un dinero que ya había cobrado.
+      incluirPagos && grupoIds.length
+        ? supabase
+            .from("pagos")
+            .select(COLUMNAS_PAGO)
+            .in("grupo_inscripcion_id", grupoIds)
+            .order("created_at", { ascending: false })
+        : Promise.resolve({ data: [] as never[] }),
+      // Por RPC y no por consulta directa: la política de `acompanantes` es del
+      // titular, no de la empresa, y así debe seguir. La función abre solo lo
+      // imprescindible —los inscritos de un evento suyo— y comprueba la membresía.
+      // Recibe un evento, así que con varias carreras se pregunta por cada una.
+      Promise.all(
+        idsEvento.map((id) => supabase.rpc("gestores_de_inscritos", { p_evento_id: id }))
+      ),
+      // Igual: cruzar el historial desde aquí exigiría leer inscripciones de
+      // otras carreras corredor a corredor, y la lista no cabe en la URL.
+      Promise.all(
+        idsEvento.map(async (id) => ({
+          eventoId: id,
+          filas: (await supabase.rpc("recurrencia_de_inscritos", { p_evento_id: id })).data ?? [],
+        }))
+      ),
+    ]);
 
   const gestores = gestoresPorEvento.flatMap((r) => r.data ?? []);
+
+  // La recurrencia es de un corredor **en una carrera concreta**: el mismo
+  // corredor es «nuevo» en su primera y «recurrente» en la siguiente, y en la
+  // vista de todas las carreras conviven las dos filas.
+  const mapaPrevias = new Map<string, number>();
+  for (const { eventoId: ev, filas } of recurrenciaPorEvento) {
+    for (const r of filas) mapaPrevias.set(`${ev}:${r.corredor_id}`, r.carreras_previas);
+  }
 
   // La ciudad vive en otra tabla y solo hace falta el nombre.
   const ciudadIds = [...new Set((perfiles ?? []).map((p) => p.ciudad_id).filter(Boolean))] as string[];
@@ -261,17 +301,30 @@ export async function listarInscritos(
   const mapaGestor = new Map(gestores.map((g) => [g.usuario_id, g]));
 
   // Un mismo inscrito puede tener varios intentos de pago; interesa el último.
+  // Las dos consultas vienen ya ordenadas por fecha descendente, así que el
+  // primero que se ve de cada clave es el vigente.
   const ultimoPago = new Map<string, NonNullable<typeof pagos>[number]>();
   for (const p of pagos ?? []) {
     if (p.inscripcion_id && !ultimoPago.has(p.inscripcion_id)) ultimoPago.set(p.inscripcion_id, p);
   }
+  const ultimoPagoDeGrupo = new Map<string, NonNullable<typeof pagos>[number]>();
+  for (const p of pagosGrupo ?? []) {
+    if (p.grupo_inscripcion_id && !ultimoPagoDeGrupo.has(p.grupo_inscripcion_id)) {
+      ultimoPagoDeGrupo.set(p.grupo_inscripcion_id, p);
+    }
+  }
 
   let filas: InscritoFila[] = inscripciones.map((i) => {
     const perfil = mapaPerfil.get(i.corredor_id);
-    const pago = ultimoPago.get(i.id);
+    // El pago suelto manda sobre el familiar: el organizador puede haber cobrado
+    // a un miembro por separado en el mostrador, y ese cobro es el que vale.
+    const pago =
+      ultimoPago.get(i.id) ??
+      (i.grupo_inscripcion_id ? ultimoPagoDeGrupo.get(i.grupo_inscripcion_id) : undefined);
     const gestor = mapaGestor.get(i.corredor_id);
     const evento = mapaEvento.get(i.evento_id);
     const extra = (i.datos_adicionales ?? {}) as DatosAdicionales;
+    const previas = mapaPrevias.get(`${i.evento_id}:${i.corredor_id}`) ?? 0;
 
     // La edad que tendrá el día de la carrera, no la de hoy: es el criterio con
     // el que se validó su categoría al inscribirse.
@@ -313,6 +366,8 @@ export async function listarInscritos(
       asistenciaConfirmada: i.asistencia_confirmada,
       codigoQr: i.codigo_qr,
       grupoId: i.grupo_inscripcion_id,
+      carrerasPrevias: previas,
+      recurrente: previas > 0,
       creadoEn: i.created_at,
       pago: pago
         ? {
@@ -344,6 +399,9 @@ export async function listarInscritos(
   }
   if (filtros.sexo) filas = filas.filter((f) => f.sexo === filtros.sexo);
   if (filtros.rangoEdad) filas = filas.filter((f) => f.rangoEdad === filtros.rangoEdad);
+  if (filtros.recurrencia) {
+    filas = filas.filter((f) => f.recurrente === (filtros.recurrencia === "recurrente"));
+  }
   if (filtros.estadoPago) {
     filas =
       filtros.estadoPago === "sin_pago"

@@ -6,8 +6,6 @@ import { SelectorEvento } from "@/components/panel/SelectorEvento";
 import { ComparativaCarreras } from "@/components/modulos/ComparativaCarreras";
 import { BotonEnlace } from "@/components/ui/Boton";
 
-export const dynamic = "force-dynamic";
-
 /**
  * Índice de métricas.
  *

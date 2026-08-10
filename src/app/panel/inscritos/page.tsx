@@ -4,8 +4,6 @@ import { CabeceraModulo, EstadoVacio } from "@/components/panel/EstadoVacio";
 import { SelectorEvento } from "@/components/panel/SelectorEvento";
 import { InformeInscritos } from "@/components/modulos/InformeInscritos";
 
-export const dynamic = "force-dynamic";
-
 /**
  * El padrón de la empresa.
  *

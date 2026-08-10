@@ -10,8 +10,8 @@ import { PlaceholderMedia } from "@/components/ui/Datos";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { claseBoton } from "@/components/ui/estilosBoton";
 import { Chip } from "@/components/ui/Chip";
-
-export const dynamic = "force-dynamic";
+import { EncuestaNps } from "../EncuestaNps";
+import { responderEncuesta } from "../actions";
 
 export const metadata: Metadata = {
   title: "Mi resultado | RunTicket",
@@ -98,6 +98,17 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
     const t = await trayectoriaDelCorredor(user.id);
     esRecord = t.carreras.find((c) => c.inscripcionId === id)?.esRecord ?? false;
   }
+
+  // La encuesta también aquí, y no solo en la ficha: esta es la pantalla que el
+  // corredor abre por su cuenta para ver su tiempo, así que es donde más
+  // probable es que conteste. Sin correos, la ocasión hay que aprovecharla.
+  const { data: encuesta } = await supabase
+    .from("encuestas_satisfaccion")
+    .select("id")
+    .eq("inscripcion_id", id)
+    .maybeSingle();
+  const puedeOpinar =
+    evento.estado === "finalizado" && inscripcion.estado === "activa" && !encuesta;
 
   const segundos = segundosDeIntervalo(resultado?.tiempo_oficial ?? null);
   const km = categoria?.distancia_km ?? null;
@@ -235,6 +246,13 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
             Fotos del evento
           </BotonEnlace>
         </div>
+
+        {puedeOpinar && (
+          <EncuestaNps
+            evento={evento.nombre}
+            responder={responderEncuesta.bind(null, inscripcion.id)}
+          />
+        )}
 
         {inscripcion.estado !== "activa" && (
           <Chip tono="neutro" className="self-start">

@@ -10,10 +10,9 @@ import { EtiquetaMono } from "@/components/ui/Datos";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { Chip } from "@/components/ui/Chip";
 import { SeccionPago } from "./SeccionPago";
-import { subirComprobante, marcarPagoPorWhatsApp } from "./actions";
+import { subirComprobante, marcarPagoPorWhatsApp, responderEncuesta } from "./actions";
 import { CambiarTalla } from "./CambiarTalla";
-
-export const dynamic = "force-dynamic";
+import { EncuestaNps } from "./EncuestaNps";
 
 export default async function InscripcionDetallePage({
   params,
@@ -56,6 +55,16 @@ export default async function InscripcionDetallePage({
         .maybeSingle(),
       supabase.from("perfiles").select("nombres, apellidos").eq("id", inscripcion.corredor_id).single(),
     ]);
+
+  // La encuesta solo se pide una vez y solo por una carrera ya corrida. La RLS
+  // de `encuestas_satisfaccion` limita esto a las respuestas propias.
+  const { data: encuesta } = await supabase
+    .from("encuestas_satisfaccion")
+    .select("id")
+    .eq("inscripcion_id", id)
+    .maybeSingle();
+  const puedeOpinar =
+    evento?.estado === "finalizado" && inscripcion.estado === "activa" && !encuesta;
 
   const entregas = await puntosDeEntrega(inscripcion.evento_id);
 
@@ -322,6 +331,13 @@ export default async function InscripcionDetallePage({
           </div>
         </div>
       </div>
+
+      {puedeOpinar && evento && (
+        <EncuestaNps
+          evento={evento.nombre}
+          responder={responderEncuesta.bind(null, inscripcion.id)}
+        />
+      )}
 
       {Number(inscripcion.precio_pagado) > 0 &&
         inscripcion.estado === "activa" &&

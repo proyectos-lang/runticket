@@ -1,14 +1,15 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { formatPrecio, formatFechaCorta } from "@/lib/format";
-import { resumirConciliacion } from "@/lib/pagos";
-import type { MetricasEvento } from "@/lib/supabase/database.types";
+import type { MetricasEvento, ConciliacionEvento, NpsEvento } from "@/lib/supabase/database.types";
 import { BarrasVerticales, BarrasHorizontales, AreaTemporal, type Punto } from "@/components/metricas/Graficos";
 import { Tarjeta, TablaDatos } from "@/components/metricas/Tarjetas";
+import { RangoFechas } from "@/components/metricas/RangoFechas";
+import { BloqueRecurrencia } from "@/components/metricas/Recurrencia";
+import { BloqueNps } from "@/components/metricas/Nps";
 import { MedidorOcupacion } from "@/components/panel/Medidores";
-
-export const dynamic = "force-dynamic";
 
 const ORDEN_EDAD = ["Menor de 18", "18-29", "30-39", "40-49", "50-59", "60 o más"];
 const ORDEN_TALLA = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -40,10 +41,27 @@ function aPuntos(registro: Record<string, number>, orden?: string[], etiquetas?:
   return puntos.map(({ etiqueta, valor }) => ({ etiqueta, valor }));
 }
 
-export default async function MetricasPage({ params }: { params: Promise<{ id: string }> }) {
+/** Acepta solo `AAAA-MM-DD`: lo que llegue torcido por la URL se ignora. */
+function fechaValida(valor?: string): string | null {
+  return valor && /^\d{4}-\d{2}-\d{2}$/.test(valor) ? valor : null;
+}
+
+export default async function MetricasPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ desde?: string; hasta?: string }>;
+}) {
   const { id } = await params;
+  const { desde: desdeParam, hasta: hastaParam } = await searchParams;
   const membresia = await getEmpresaActivaDelPanel();
   if (membresia.rol !== "admin_empresa") redirect(`/panel/eventos/${id}`);
+
+  // Invertidas se corrigen en vez de devolver cero filas sin explicación.
+  const a = fechaValida(desdeParam);
+  const b = fechaValida(hastaParam);
+  const [desde, hasta] = a && b && a > b ? [b, a] : [a, b];
 
   const supabase = await createClient();
   const { data: evento } = await supabase
@@ -54,28 +72,23 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
     .maybeSingle();
   if (!evento) notFound();
 
-  const [{ data: metricasRaw }, { data: pagos }] = await Promise.all([
-    supabase.rpc("metricas_evento", { p_evento_id: id }),
-    supabase
-      .from("pagos")
-      .select("monto, metodo, estado, verificado_en, created_at, inscripcion_id")
-      .eq("empresa_id", membresia.empresaId),
+  // Las dos agregaciones bajan a Postgres y comparten el mismo rango, para que
+  // las cifras de arriba y las de abajo no hablen de periodos distintos.
+  const [{ data: metricasRaw }, { data: conciliacionRaw }, { data: npsRaw }] = await Promise.all([
+    supabase.rpc("metricas_evento", { p_evento_id: id, p_desde: desde, p_hasta: hasta }),
+    supabase.rpc("conciliacion_evento", { p_evento_id: id, p_desde: desde, p_hasta: hasta }),
+    // La encuesta queda fuera del rango a propósito: se responde después de la
+    // carrera y acotarla por fecha de inscripción la dejaría casi siempre vacía.
+    supabase.rpc("nps_evento", { p_evento_id: id }),
   ]);
 
   const m = (metricasRaw ?? {}) as Partial<MetricasEvento>;
+  const conc = (conciliacionRaw ?? {}) as Partial<ConciliacionEvento>;
   const inscritos = m.inscritos ?? 0;
 
-  // Los pagos se filtran a los de este evento cruzando por inscripción.
-  const { data: inscripcionesDelEvento } = await supabase
-    .from("inscripciones")
-    .select("id")
-    .eq("evento_id", id);
-  const idsEvento = new Set((inscripcionesDelEvento ?? []).map((i) => i.id));
-  const pagosDelEvento = (pagos ?? []).filter((p) => p.inscripcion_id && idsEvento.has(p.inscripcion_id));
-  const conciliacion = resumirConciliacion(pagosDelEvento);
-
-  // Conversión: cuántas inscripciones llegaron a pagarse.
-  const pagadas = pagosDelEvento.filter((p) => p.estado === "pagado").length;
+  // Conversión por inscripción, no por pago: un pago familiar cubre a varias
+  // personas y contarlo como uno hundía la tasa.
+  const pagadas = conc.inscripciones_pagadas ?? 0;
   const conversion = inscritos > 0 ? Math.round((pagadas / inscritos) * 100) : 0;
 
   const edad = aPuntos(m.por_rango_edad ?? {}, ORDEN_EDAD);
@@ -84,6 +97,20 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
   const experiencia = aPuntos(m.por_experiencia ?? {}, ORDEN_EXPERIENCIA);
   const origen = aPuntos(m.por_origen ?? {});
   const ciudad = aPuntos(m.por_ciudad ?? {});
+  const nacionalidad = aPuntos(m.por_nacionalidad ?? {});
+  const r = m.recurrencia ?? { corredores: 0, recurrentes: 0, nuevos: 0 };
+  const recurrencia = { total: r.corredores, recurrentes: r.recurrentes, nuevos: r.nuevos };
+  const nps: NpsEvento = {
+    respuestas: 0,
+    invitados: 0,
+    promotores: 0,
+    pasivos: 0,
+    detractores: 0,
+    nps: null,
+    promedio: null,
+    comentarios: [],
+    ...((npsRaw ?? {}) as Partial<NpsEvento>),
+  };
   const porDia = Object.entries(m.inscripciones_por_dia ?? {})
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([dia, valor]) => ({ etiqueta: formatFechaCorta(dia), valor }));
@@ -103,6 +130,10 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
         </a>
       </div>
 
+      <Suspense fallback={null}>
+        <RangoFechas desde={desde} hasta={hasta} />
+      </Suspense>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Tarjeta etiqueta="Inscritos" valor={inscritos} detalle={`${m.anuladas ?? 0} anuladas`} />
         <Tarjeta
@@ -112,8 +143,8 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
         />
         <Tarjeta
           etiqueta="Recaudado"
-          valor={formatPrecio(conciliacion.totalPagado, evento.moneda)}
-          detalle={`${formatPrecio(conciliacion.totalPendiente, evento.moneda)} pendiente`}
+          valor={formatPrecio(Number(conc.total_pagado ?? 0), evento.moneda)}
+          detalle={`${formatPrecio(Number(conc.total_pendiente ?? 0), evento.moneda)} pendiente`}
         />
         <Tarjeta
           etiqueta="Kits entregados"
@@ -121,6 +152,10 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
           detalle={inscritos ? `${Math.round(((m.kits_entregados ?? 0) / inscritos) * 100)}% del total` : undefined}
         />
       </div>
+
+      <BloqueRecurrencia datos={recurrencia} />
+
+      <BloqueNps datos={nps} />
 
       <section className="rounded-2xl border p-6 border-linea bg-superficie">
         <h2 className="mb-4 text-lg font-semibold text-texto">
@@ -165,6 +200,9 @@ export default async function MetricasPage({ params }: { params: Promise<{ id: s
         </Panel>
         <Panel titulo="Ciudad de residencia" datos={ciudad}>
           <BarrasHorizontales datos={ciudad} />
+        </Panel>
+        <Panel titulo="Nacionalidad" datos={nacionalidad}>
+          <BarrasHorizontales datos={nacionalidad} />
         </Panel>
       </div>
     </div>

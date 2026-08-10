@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
@@ -5,7 +6,16 @@ import { AppShell } from "@/components/shell/AppShell";
 import { navPortal } from "@/components/shell/navegacion";
 import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
 
-export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+/** Dinámico de principio a fin; ver la nota del layout del panel. */
+export default function PortalLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <PortalAutenticado>{children}</PortalAutenticado>
+    </Suspense>
+  );
+}
+
+async function PortalAutenticado({ children }: { children: React.ReactNode }) {
   const usuario = await getUsuarioActual();
   if (!usuario) redirect("/login?next=/portal");
 

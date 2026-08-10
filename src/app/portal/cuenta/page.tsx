@@ -8,8 +8,6 @@ import { EncabezadoSeccion } from "@/components/portal/Historial";
 import { Boton } from "@/components/ui/Boton";
 import { Aviso } from "@/components/ui/Aviso";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Ajustes de cuenta | RunTicket",
   robots: { index: false },

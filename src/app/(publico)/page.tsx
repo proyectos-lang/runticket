@@ -6,8 +6,6 @@ import { HeroEvento } from "@/components/publico/HeroEvento";
 import { PildoraEnlace } from "@/components/ui/Pildora";
 import { esUrgente } from "@/lib/eventos/urgencia";
 
-export const dynamic = "force-dynamic";
-
 export default async function HomePage() {
   const eventos = await listarEventosPublicos({ soloFuturos: true });
   const [destacada, ...resto] = eventos;

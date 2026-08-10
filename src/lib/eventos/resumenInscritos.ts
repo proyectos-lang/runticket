@@ -19,6 +19,13 @@ export type ResumenInscritos = {
   porTalla: Reparto[];
   porSexo: Reparto[];
   porEdad: Reparto[];
+  /**
+   * Cuántas de estas participaciones son de gente que ya corrió antes con esta
+   * empresa. Se cuenta por fila y no por corredor distinto porque en la vista de
+   * todas las carreras el mismo corredor puede ser nuevo en una y recurrente en
+   * la siguiente: son dos hechos distintos, no una persona contada dos veces.
+   */
+  recurrencia: { total: number; recurrentes: number; nuevos: number };
 };
 
 const ETIQUETA_SEXO: Record<string, string> = {
@@ -141,5 +148,9 @@ export function resumirInscritos(
       filas.map((f) => f.rangoEdad),
       RANGOS_EDAD
     ),
+    recurrencia: (() => {
+      const recurrentes = filas.filter((f) => f.recurrente).length;
+      return { total, recurrentes, nuevos: total - recurrentes };
+    })(),
   };
 }

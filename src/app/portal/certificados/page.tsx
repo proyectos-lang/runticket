@@ -5,8 +5,6 @@ import { trayectoriaDelCorredor } from "@/lib/portal/trayectoria";
 import { formatFechaMono, distanciaSiAporta } from "@/lib/format";
 import { EncabezadoSeccion } from "@/components/portal/Historial";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Mis certificados | RunTicket",
   robots: { index: false },

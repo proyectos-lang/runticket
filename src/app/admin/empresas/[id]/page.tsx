@@ -9,8 +9,6 @@ import { InvitarMiembroForm } from "./InvitarMiembroForm";
 import { FilaMiembro } from "./FilaMiembro";
 import { LogoEmpresa } from "./LogoEmpresa";
 
-export const dynamic = "force-dynamic";
-
 export default async function EmpresaDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();

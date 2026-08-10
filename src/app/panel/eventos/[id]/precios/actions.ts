@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
+import { tagEvento } from "@/lib/supabase/publico";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminDeEvento } from "@/lib/auth/session";
 import { precioEscalonadoSchema } from "@/lib/validacion/eventos";
@@ -102,7 +103,12 @@ export async function guardarPrecio(
   if (error) return { status: "error", message: "No se pudo guardar: " + error.message };
 
   revalidatePath(`/panel/eventos/${eventoId}/precios`);
-  if (evento?.slug) revalidatePath(`/eventos/${evento.slug}`);
+  if (evento?.slug) {
+    revalidatePath(`/eventos/${evento.slug}`);
+    // El precio vigente lo calcula la ficha pública: sin esto seguiría
+    // cobrando el tramo anterior hasta que la caché expirara sola.
+    updateTag(tagEvento(evento.slug));
+  }
   return { status: "guardado" };
 }
 
@@ -128,5 +134,10 @@ export async function eliminarPrecio(eventoId: string, precioId: string) {
 
   const { data: evento } = await supabase.from("eventos").select("slug").eq("id", eventoId).maybeSingle();
   revalidatePath(`/panel/eventos/${eventoId}/precios`);
-  if (evento?.slug) revalidatePath(`/eventos/${evento.slug}`);
+  if (evento?.slug) {
+    revalidatePath(`/eventos/${evento.slug}`);
+    // El precio vigente lo calcula la ficha pública: sin esto seguiría
+    // cobrando el tramo anterior hasta que la caché expirara sola.
+    updateTag(tagEvento(evento.slug));
+  }
 }

@@ -5,8 +5,6 @@ import { edadEnFecha } from "@/lib/format";
 import { Aviso } from "@/components/ui/Aviso";
 import { GestorAcompanantes, type Acompanante } from "./GestorAcompanantes";
 
-export const dynamic = "force-dynamic";
-
 export const metadata: Metadata = {
   title: "Mis acompañantes | RunTicket HN",
   robots: { index: false },
