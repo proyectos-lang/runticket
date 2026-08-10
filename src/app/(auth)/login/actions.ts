@@ -2,8 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ambitoDelUsuario } from "@/lib/auth/destino";
 import { loginSchema } from "@/lib/validacion/auth";
-import { esSuperAdmin, getMembresiasActivas } from "@/lib/auth/session";
 import { dentroDelLimite, MENSAJE_LIMITE, rutaInternaSegura } from "@/lib/seguridad";
 
 export type LoginState = {
@@ -50,12 +50,6 @@ export async function iniciarSesion(_prevState: LoginState, formData: FormData):
   const next = rutaInternaSegura(formData.get("next"));
   if (next) redirect(next);
 
-  if (await esSuperAdmin()) {
-    redirect("/admin");
-  }
-  const membresias = await getMembresiasActivas();
-  if (membresias.length > 0) {
-    redirect("/panel");
-  }
-  redirect("/portal");
+  // Misma regla que usa la cabecera pública: ver lib/auth/destino.ts.
+  redirect((await ambitoDelUsuario()).href);
 }

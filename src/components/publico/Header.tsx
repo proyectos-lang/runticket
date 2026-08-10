@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { ambitoDelUsuario } from "@/lib/auth/destino";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { Marca } from "./Marca";
 
@@ -43,11 +44,17 @@ async function AccesoUsuario() {
   const usuario = await getUsuarioActual();
 
   if (usuario) {
+    // **A dónde lleva depende de quién sea.** Antes iba siempre a `/portal`, y
+    // eso dejaba a los organizadores en una vía muerta: entraban bien al panel,
+    // pero al volver al sitio público la única puerta les devolvía al portal de
+    // corredor y no había ningún enlace a `/panel` en toda la aplicación.
+    const ambito = await ambitoDelUsuario();
+
     // La cabecera acompaña a todas las pantallas: su botón nunca es el
     // primario, o competiría con la acción de cada una.
     return (
-      <BotonEnlace variante="secundaria" tamano="sm" href="/portal">
-        Mi cuenta
+      <BotonEnlace variante="secundaria" tamano="sm" href={ambito.href}>
+        {ambito.etiqueta}
       </BotonEnlace>
     );
   }
