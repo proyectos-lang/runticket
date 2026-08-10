@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminEmpresaActivo } from "@/lib/auth/session";
 import { auditar } from "@/lib/seguridad";
+import { avisarPagoConfirmado } from "@/lib/correo/mensajes";
 import type { EstadoPago } from "@/lib/supabase/database.types";
 
 /**
@@ -33,6 +34,14 @@ export async function cambiarEstadoPago(pagoId: string, nuevoEstado: EstadoPago,
     empresaId: membresia.empresaId,
     datosNuevos: { estado: nuevoEstado, notas: typeof notas === "string" ? notas : null },
   });
+
+  // Confirmar el pago es lo que dispara el dorsal, así que es el momento —y el
+  // único— en que el corredor puede recibir su QR. Va después de auditar y no se
+  // envuelve en el error de la acción: `avisarPagoConfirmado` no lanza nunca, y
+  // un fallo del proveedor de correo no puede deshacer un cobro ya registrado.
+  if (nuevoEstado === "pagado") {
+    await avisarPagoConfirmado(pagoId);
+  }
 
   revalidatePath("/panel/pagos");
 }
