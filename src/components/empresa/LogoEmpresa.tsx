@@ -4,9 +4,19 @@ import Image from "next/image";
 import { useState, useTransition } from "react";
 import { SubidorImagen } from "@/components/forms/SubidorImagen";
 import { PRESETS } from "@/lib/imagenes/comprimir";
-import { guardarLogo, quitarLogo } from "./actions";
 
-export function LogoEmpresa({ empresaId, logo }: { empresaId: string; logo: string | null }) {
+export function LogoEmpresa({
+  empresaId,
+  logo,
+  guardar,
+  quitar,
+}: {
+  /** Solo para componer la ruta del bucket: la autorización la hacen las acciones. */
+  empresaId: string;
+  logo: string | null;
+  guardar: (url: string) => Promise<void>;
+  quitar: () => Promise<void>;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pendiente, startTransition] = useTransition();
 
@@ -30,7 +40,7 @@ export function LogoEmpresa({ empresaId, logo }: { empresaId: string; logo: stri
           preset={PRESETS.logo}
           etiqueta={logo ? "Reemplazar logo" : "Subir logo"}
           onSubido={async ([r]) => {
-            if (r) await guardarLogo(empresaId, r.url);
+            if (r) await guardar(r.url);
           }}
         />
         {logo && (
@@ -41,7 +51,7 @@ export function LogoEmpresa({ empresaId, logo }: { empresaId: string; logo: stri
               setError(null);
               startTransition(async () => {
                 try {
-                  await quitarLogo(empresaId);
+                  await quitar();
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "No se pudo quitar el logo.");
                 }

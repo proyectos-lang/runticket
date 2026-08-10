@@ -1,6 +1,19 @@
 import { z } from "zod";
 import { opcional } from "./comun";
 
+/**
+ * Estado del formulario de ficha de empresa.
+ *
+ * Vive aquí y no junto a una de las dos acciones porque **hay dos**: la de la
+ * consola de plataforma y la del panel de la propia empresa. El formulario es
+ * uno solo y no puede depender de un módulo de servidor concreto.
+ */
+export type EmpresaState = {
+  status: "idle" | "error" | "guardado";
+  message?: string;
+  errors?: Record<string, string[] | undefined>;
+};
+
 const slugSchema = z
   .string()
   .trim()

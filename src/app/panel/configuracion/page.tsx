@@ -6,11 +6,21 @@ import { ChipEstado } from "@/components/ui/Chip";
 import { CabeceraModulo } from "@/components/panel/EstadoVacio";
 import { notFound, redirect } from "next/navigation";
 import { Aviso } from "@/components/ui/Aviso";
+import { FormularioEmpresa } from "@/components/empresa/FormularioEmpresa";
+import { LogoEmpresa } from "@/components/empresa/LogoEmpresa";
+import { actualizarMiEmpresa, guardarMiLogo, quitarMiLogo } from "./actions";
 
 /**
- * Ficha de la empresa desde el panel. Es de solo lectura a propósito: el alta y
- * la edición de empresas son competencia del super-administrador de la
- * plataforma, no del organizador.
+ * Ficha de la empresa desde el panel, **editable por su administrador**.
+ *
+ * Antes era de solo lectura y remitía al administrador de la plataforma para
+ * cualquier cambio, incluido el teléfono con el que se cobra por WhatsApp. Eso
+ * convertía al super-admin en cuello de botella de datos que son del
+ * organizador y que solo él conoce.
+ *
+ * Lo que **no** puede tocar es el `estado` de la empresa —activa o suspendida—,
+ * que es gobierno de plataforma. No aparece en el formulario y, sobre todo, el
+ * disparador `proteger_estado_empresa` de la base lo rechazaría igualmente.
  */
 export default async function ConfiguracionPage() {
   const membresia = await getEmpresaActivaDelPanel();
@@ -55,45 +65,30 @@ export default async function ConfiguracionPage() {
           {empresa && <ChipEstado estilo={ESTADO_EMPRESA[empresa.estado]} />}
         </div>
 
-        <dl className="grid gap-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-atenuado">Página pública</dt>
-            <dd>
-              <Link
-                href={`/organizadores/${empresa?.slug}`}
-                target="_blank"
-                className="underline underline-offset-2 text-texto"
-              >
-                /organizadores/{empresa?.slug}
-              </Link>
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-atenuado">RTN</dt>
-            <dd className="text-texto">{empresa?.rtn ?? "Sin registrar"}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-atenuado">Correo de contacto</dt>
-            <dd className="text-texto">
-              {empresa?.correo_contacto ?? "Sin registrar"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-atenuado">Teléfono</dt>
-            <dd className="text-texto">
-              {empresa?.telefono_contacto ?? "Sin registrar"}
-              {!empresa?.telefono_contacto && (
-                <span className="ml-2 text-xs text-amber-400">
-                  Sin él no se puede cobrar por WhatsApp
-                </span>
-              )}
-            </dd>
-          </div>
-        </dl>
-
-        <p className="border-t pt-4 text-xs border-linea text-atenuado">
-          Para cambiar estos datos o el logo, escribe al administrador de la plataforma.
+        <p className="text-sm text-atenuado">
+          Tu página pública es{" "}
+          <Link
+            href={`/organizadores/${empresa.slug}`}
+            target="_blank"
+            className="underline underline-offset-2 text-texto"
+          >
+            /organizadores/{empresa.slug}
+          </Link>
+          . Estos datos son los que ven los corredores.
         </p>
+
+        <div className="border-t pt-5 border-linea">
+          <LogoEmpresa
+            empresaId={empresa.id}
+            logo={empresa.logo_url}
+            guardar={guardarMiLogo}
+            quitar={quitarMiLogo}
+          />
+        </div>
+
+        <div className="border-t pt-5 border-linea">
+          <FormularioEmpresa guardar={actualizarMiEmpresa} empresa={empresa} />
+        </div>
       </section>
 
       <section className="flex flex-col gap-3">

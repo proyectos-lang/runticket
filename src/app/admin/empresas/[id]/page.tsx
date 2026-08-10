@@ -4,10 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { ChipEstadoEmpresa, ZonaPeligrosa } from "@/components/admin/Chips";
 import { Boton } from "@/components/ui/Boton";
 import { actualizarEstadoEmpresa } from "../actions";
-import { EditarEmpresaForm } from "./EditarEmpresaForm";
+import { actualizarEmpresa, guardarLogo, quitarLogo } from "./actions";
+import { FormularioEmpresa } from "@/components/empresa/FormularioEmpresa";
 import { InvitarMiembroForm } from "./InvitarMiembroForm";
 import { FilaMiembro } from "./FilaMiembro";
-import { LogoEmpresa } from "./LogoEmpresa";
+import { LogoEmpresa } from "@/components/empresa/LogoEmpresa";
 
 export default async function EmpresaDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -73,12 +74,17 @@ export default async function EmpresaDetallePage({ params }: { params: Promise<{
 
       <section className="flex flex-col gap-4 rounded-2xl border p-6 border-linea bg-superficie">
         <h2 className="text-lg font-semibold text-texto">Identidad</h2>
-        <LogoEmpresa empresaId={empresa.id} logo={empresa.logo_url} />
+        <LogoEmpresa
+          empresaId={empresa.id}
+          logo={empresa.logo_url}
+          guardar={guardarLogo.bind(null, empresa.id)}
+          quitar={quitarLogo.bind(null, empresa.id)}
+        />
       </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border p-6 border-linea bg-superficie">
         <h2 className="text-lg font-semibold text-texto">Datos de la empresa</h2>
-        <EditarEmpresaForm empresaId={empresa.id} empresa={empresa} />
+        <FormularioEmpresa guardar={actualizarEmpresa.bind(null, empresa.id)} empresa={empresa} />
       </section>
 
       <section className="flex flex-col gap-4 rounded-2xl border p-6 border-linea bg-superficie">

@@ -2,16 +2,22 @@
 
 import { useActionState } from "react";
 import { Campo } from "@/components/ui/Campo";
-import { actualizarEmpresa, type EmpresaState } from "./actions";
 import { Boton } from "@/components/ui/Boton";
+import type { EmpresaState } from "@/lib/validacion/empresas";
 
 const initialState: EmpresaState = { status: "idle" };
 
-export function EditarEmpresaForm({
-  empresaId,
+export function FormularioEmpresa({
+  guardar,
   empresa,
 }: {
-  empresaId: string;
+  /**
+   * La acción ya enlazada a la empresa que toque. Quien monta el formulario
+   * decide de qué empresa se trata: la consola pasa un id, y el panel la deriva
+   * de la sesión. Así el id nunca viaja en el formulario, que es lo que impide
+   * que un administrador edite la ficha de otra empresa cambiándolo a mano.
+   */
+  guardar: (prev: EmpresaState, formData: FormData) => Promise<EmpresaState>;
   empresa: {
     nombre_comercial: string;
     slug: string;
@@ -21,10 +27,7 @@ export function EditarEmpresaForm({
     colores_marca: Record<string, unknown>;
   };
 }) {
-  const [state, formAction, pending] = useActionState(
-    actualizarEmpresa.bind(null, empresaId),
-    initialState
-  );
+  const [state, formAction, pending] = useActionState(guardar, initialState);
 
   const colores = empresa.colores_marca as { primario?: string; secundario?: string };
 

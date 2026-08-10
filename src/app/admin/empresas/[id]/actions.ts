@@ -4,15 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { esSuperAdmin } from "@/lib/auth/session";
-import { editarEmpresaSchema, invitarMiembroSchema } from "@/lib/validacion/empresas";
+import { editarEmpresaSchema, invitarMiembroSchema, type EmpresaState } from "@/lib/validacion/empresas";
 import { urlPublicaValida, rutaDesdeUrlPublica } from "@/lib/storage/rutas";
 import type { RolEmpresa, EstadoMembresia } from "@/lib/supabase/database.types";
 
-export type EmpresaState = {
-  status: "idle" | "error" | "guardado";
-  message?: string;
-  errors?: Record<string, string[] | undefined>;
-};
+export type { EmpresaState } from "@/lib/validacion/empresas";
 
 async function exigirSuperAdmin() {
   if (!(await esSuperAdmin())) throw new Error("No autorizado.");
