@@ -68,7 +68,7 @@ export function CrearUsuarioForm({ empresas }: { empresas: EmpresaOpcion[] }) {
           { valor: "usuario", etiqueta: "Usuario (corredor u organizador)" },
           { valor: "super_admin", etiqueta: "Super-administrador de la plataforma" },
         ]}
-        ayuda="El super-administrador ve y gobierna todas las empresas."
+        ayuda="El super-administrador ve y gobierna todas las empresas. Para que alguien administre UNA empresa, déjalo en «Usuario» y dale rol de administrador abajo."
         errors={state.errors?.rolPlataforma}
       />
 

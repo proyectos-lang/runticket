@@ -31,11 +31,13 @@ export default async function UsuariosPage({
 
   const { data: perfiles } = await consulta;
 
-  // Empresas a las que pertenece cada usuario, para saber de un vistazo quién es quién.
+  // Empresas a las que pertenece cada usuario, **con su rol en cada una**. El rol
+  // no se traía, y por eso el nivel intermedio —administrar una empresa— era
+  // invisible desde esta pantalla: se veía el nombre de la empresa y nada más.
   const { data: membresias } = perfiles?.length
     ? await supabase
         .from("empresa_miembros")
-        .select("usuario_id, empresa_id, estado")
+        .select("usuario_id, empresa_id, estado, rol")
         .in(
           "usuario_id",
           perfiles.map((p) => p.id)
@@ -82,7 +84,7 @@ export default async function UsuariosPage({
             <thead className="text-xs uppercase tracking-wide bg-superficie text-atenuado">
               <tr>
                 <th className="px-4 py-3">Persona</th>
-                <th className="px-4 py-3">Empresas</th>
+                <th className="px-4 py-3">Empresas y rol en cada una</th>
                 <th className="px-4 py-3">Rol de plataforma</th>
                 <th className="px-4 py-3">Alta</th>
               </tr>
@@ -98,11 +100,12 @@ export default async function UsuariosPage({
                     rolPlataforma: p.rol_plataforma,
                     empresas: (membresias ?? [])
                       .filter((m) => m.usuario_id === p.id)
-                      .map(
-                        (m) =>
-                          empresas?.find((e) => e.id === m.empresa_id)?.nombre_comercial ?? ""
-                      )
-                      .filter(Boolean),
+                      .map((m) => ({
+                        id: m.empresa_id,
+                        nombre: empresas?.find((e) => e.id === m.empresa_id)?.nombre_comercial ?? "",
+                        rol: m.rol,
+                      }))
+                      .filter((e) => e.nombre),
                     creadoEn: p.created_at,
                   }}
                 />
