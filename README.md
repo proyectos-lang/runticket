@@ -53,6 +53,41 @@ por ruta. Las reglas son tres:
 Excepción deliberada: **los cupos disponibles no se cachean**. Servir una plaza
 que ya no existe manda al corredor a llenar un formulario que va a fallar.
 
+## Coste de los despliegues
+
+Vercel factura los minutos de build **multiplicados por el tamaño de la máquina**,
+así que lo que encarece un proyecto pequeño no es que su build sea lento, sino
+cuántas veces se construye y en qué máquina. Un build completo de este repo son
+unos 20 segundos, repartidos así:
+
+| Fase | Tiempo |
+|---|---|
+| Compilación (Turbopack) | ~6 s |
+| Comprobación de TypeScript | ~7,5 s |
+| Generación estática (68 páginas) | ~2 s |
+| Resto | ~4 s |
+
+Tres reglas para que eso no se dispare:
+
+1. **Máquina de build estándar**, no la «Enhanced». Este proyecto compila en seis
+   segundos; con ocho núcleos cada build cuesta ocho veces más y apenas termina
+   antes. Se elige en *Settings → Build & Development Settings*.
+
+2. **No se construye por documentación.** El `ignoreCommand` de `vercel.json`
+   salta el build cuando un commit solo tocó `*.md` o `docs/`. Si `HEAD^` no
+   existe —un clon superficial, el primer commit— construye igualmente: ante la
+   duda, se construye.
+
+3. **Agrupar los cambios antes de empujar.** Cada `git push` es un despliegue, y
+   los que fallan también se cobran. Conviene empujar por bloques de trabajo
+   terminados, no por arreglo suelto.
+
+> La comprobación de TypeScript es el 40 % del build y se puede desactivar con
+> `typescript.ignoreBuildErrors`. **No está desactivada a propósito**: es la
+> última puerta antes de producción, y «ya lo comprobamos en local» es la
+> suposición que falla el día que alguien empuja con prisa. Si algún día pesa,
+> primero hay que montar esa comprobación en CI y después quitarla de aquí.
+
 ## Supabase
 
 - `src/lib/supabase/client.ts` — cliente para Client Components.
