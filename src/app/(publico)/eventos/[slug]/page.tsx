@@ -47,7 +47,13 @@ async function cargarEvento(slug: string) {
         .select("id, nombre, logo_url, url_sitio, orden")
         .eq("evento_id", evento.id)
         .order("orden"),
-      supabase.from("evento_tallas").select("talla, inventario_disponible").eq("evento_id", evento.id),
+      // En el orden en que el organizador las dio de alta: sin ORDER BY, Postgres
+      // devuelve lo que le conviene y el orden cambiaba entre visitas.
+      supabase
+        .from("evento_tallas")
+        .select("talla, inventario_disponible")
+        .eq("evento_id", evento.id)
+        .order("created_at"),
     ]);
 
   return { evento, empresa, imagenes: imagenes ?? [], patrocinadores: patrocinadores ?? [], tallas: tallas ?? [] };
@@ -150,13 +156,6 @@ async function FichaEvento({ params }: { params: Promise<{ slug: string }> }) {
   const cuposLibres = conTope.length
     ? conTope.reduce((a, c) => a + (c.cupos_disponibles ?? 0), 0)
     : null;
-  // Se comprueba el tipo y no `!== null`: los tipos de las funciones RPC se
-  // mantienen a mano, así que una columna que la función todavía no devuelve
-  // llega como `undefined` y pasaría el filtro de null.
-  const desnivelMax = categorias.reduce<number | null>(
-    (a, c) => (typeof c.desnivel_m === "number" && (a === null || c.desnivel_m > a) ? c.desnivel_m : a),
-    null
-  );
 
   const diasParaCerrar = evento.fecha_limite_inscripcion
     ? diasHasta(evento.fecha_limite_inscripcion)
@@ -224,11 +223,6 @@ async function FichaEvento({ params }: { params: Promise<{ slug: string }> }) {
                 <Celda
                   etiqueta="Fecha"
                   valor={`${formatFechaMono(evento.fecha_inicio, evento.zona_horaria)} · ${formatHoraMono(evento.fecha_inicio, evento.zona_horaria)}`}
-                />
-                <Celda
-                  etiqueta="Desnivel"
-                  destacado
-                  valor={desnivelMax !== null ? `+${desnivelMax.toLocaleString("es-HN")} m` : "Llano"}
                 />
                 <Celda
                   etiqueta="Cupos"

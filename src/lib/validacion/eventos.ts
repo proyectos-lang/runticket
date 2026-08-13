@@ -64,7 +64,8 @@ export const categoriaSchema = z.object({
   distanciaKm: decimalOpcional,
   // El selector de distancia y la ficha pública ya pintan el desnivel; faltaba
   // el campo para introducirlo. Admite 0 (una ruta llana) y no solo positivos.
-  desnivelM: numeroOpcional,
+  //  se retiró del formulario de categorías: la columna sigue en la
+  // base con lo ya cargado, pero no se pide ni se escribe desde el panel.
   precioBase: z.coerce.number().min(0, "El precio no puede ser negativo."),
   cupoMaximo: numeroOpcional,
   edadMinima: numeroOpcional,

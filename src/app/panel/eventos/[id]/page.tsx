@@ -13,10 +13,22 @@ import type { EstadoEvento, ResumenEvento } from "@/lib/supabase/database.types"
 /** Transiciones ofrecidas según el estado actual: no todas tienen sentido siempre. */
 const SIGUIENTES: Record<EstadoEvento, { estado: EstadoEvento; etiqueta: string }[]> = {
   borrador: [{ estado: "publicado", etiqueta: "Publicar evento" }],
+  // Sin «Cerrar inscripciones»: las inscripciones se cierran solas al pasar la
+  // fecha límite del evento, que es lo que ya mira la web pública para decidir
+  // si admite gente. El botón hacía lo mismo a mano y se prestaba a cerrar por
+  // error una carrera que aún vendía.
+  //
+  // **De aquí sale «Marcar como finalizado» directamente.** Antes solo se podía
+  // finalizar desde `inscripciones_cerradas`, así que quitar aquel botón sin
+  // esto habría dejado el estado `finalizado` inalcanzable — y con él los
+  // certificados, la encuesta de satisfacción y las insignias, que cuelgan de
+  // dar la carrera por terminada.
   publicado: [
-    { estado: "inscripciones_cerradas", etiqueta: "Cerrar inscripciones" },
+    { estado: "finalizado", etiqueta: "Marcar como finalizado" },
     { estado: "cancelado", etiqueta: "Cancelar evento" },
   ],
+  // Se conserva por las carreras que ya estén en este estado: pueden reabrirse o
+  // finalizarse con normalidad, pero ya no se entra aquí desde el panel.
   inscripciones_cerradas: [
     { estado: "publicado", etiqueta: "Reabrir inscripciones" },
     { estado: "finalizado", etiqueta: "Marcar como finalizado" },

@@ -15,7 +15,9 @@ export async function ModuloInventario({ eventoId }: { eventoId: string }) {
 
   const [{ data: inventario }, { data: tallas }] = await Promise.all([
     supabase.rpc("inventario_tallas", { p_evento_id: eventoId }),
-    supabase.from("evento_tallas").select("id, talla").eq("evento_id", eventoId).order("talla"),
+    // Mismo orden que la ficha pública y que el alta: el de creación. Alfabético
+    // ponía la XXL antes que la S y no se correspondía con nada.
+    supabase.from("evento_tallas").select("id, talla").eq("evento_id", eventoId).order("created_at"),
   ]);
 
   const filas: FilaTalla[] = (tallas ?? []).map((t) => {

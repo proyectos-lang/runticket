@@ -45,7 +45,10 @@ export function SelectorDistancia({
           const agotada = c.cupos_disponibles !== null && c.cupos_disponibles <= 0;
           const condicion = [
             c.hora_salida && `Salida ${c.hora_salida.slice(0, 5)}`,
-            typeof c.desnivel_m === "number" && `+${c.desnivel_m.toLocaleString("es-HN")} m`,
+            // El desnivel se retiró del panel, así que ya no se pinta: con los
+            // datos que quedan saldría «+0 m», que es ruido, y en una carrera
+            // nueva no saldría nada. Un dato que nadie puede mantener es peor
+            // que no tenerlo.
             formatRangoEdad(c.edad_minima, c.edad_maxima),
             agotada
               ? "Agotada"

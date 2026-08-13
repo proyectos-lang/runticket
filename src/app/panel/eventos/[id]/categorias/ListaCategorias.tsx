@@ -57,9 +57,6 @@ export function ListaCategorias({
               </p>
               <p className="tabular font-mono text-[0.65625rem] uppercase tracking-etiqueta text-mudo">
                 {[
-                  // El desnivel se muestra aquí y no junto a la distancia para no
-                  // competir con el precio: es un dato de consulta, no de decisión.
-                  typeof c.desnivel_m === "number" && `+${c.desnivel_m} m`,
                   c.hora_salida && `Salida ${c.hora_salida.slice(0, 5)}`,
                   (c.edad_minima || c.edad_maxima) &&
                     `Edad ${c.edad_minima ?? "?"}–${c.edad_maxima ?? "?"}`,

@@ -204,7 +204,7 @@ export async function listarInscritos(
       .from("categorias")
       .select("id, nombre, distancia_km, cupo_maximo, evento_id")
       .in("evento_id", idsEvento),
-    supabase.from("evento_tallas").select("talla").in("evento_id", idsEvento),
+    supabase.from("evento_tallas").select("talla").in("evento_id", idsEvento).order("created_at"),
   ]);
 
   const catalogo: CatalogoInscritos = {
@@ -217,7 +217,9 @@ export async function listarInscritos(
         cupoMaximo: c.cupo_maximo,
       }))
       .sort((a, b) => a.nombre.localeCompare(b.nombre)),
-    tallas: [...new Set((tallasEvento ?? []).map((t) => t.talla))].sort(),
+    // Sin .sort(): la consulta ya viene en el orden de alta, y reordenar aquí
+    // alfabéticamente deshacía justo eso.
+    tallas: [...new Set((tallasEvento ?? []).map((t) => t.talla))],
   };
 
   const truncado = (crudas?.length ?? 0) > LIMITE_INFORME;

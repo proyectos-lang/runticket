@@ -57,16 +57,6 @@ export function CategoriaForm({
           errors={state.errors?.distanciaKm}
         />
         <Campo
-          label="Desnivel (m)"
-          name="desnivelM"
-          type="number"
-          min="0"
-          placeholder="Llano"
-          defaultValue={categoria?.desnivel_m ?? ""}
-          ayuda="Acumulado positivo"
-          errors={state.errors?.desnivelM}
-        />
-        <Campo
           label="Precio"
           name="precioBase"
           type="number"

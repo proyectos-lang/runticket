@@ -12,6 +12,25 @@ export type ResultadoSubida = { url: string; ruta: string };
  * usuario, las políticas del bucket (que exigen que la primera carpeta sea el
  * empresa_id) se evalúan de verdad.
  */
+/**
+ * Qué medida conviene subir, dicho antes de elegir el archivo.
+ *
+ * **Se deriva del propio preset**, no se escribe a mano en cada pantalla: si
+ * mañana el banner pasa de 1600 a 2000 px, el texto cambia solo. Un tamaño
+ * recomendado escrito aparte del que aplica el compresor miente en cuanto
+ * alguien toca uno de los dos.
+ *
+ * Se dice el mínimo y no un tamaño exacto porque el compresor **reduce pero
+ * nunca amplía**: subir más grande no estropea nada —se recorta a esta medida—,
+ * mientras que subir menos deja una imagen borrosa que ya no tiene arreglo.
+ */
+function medidaRecomendada({ ladoMaximo, cuadrada }: OpcionesCompresion): string {
+  const medida = cuadrada
+    ? `${ladoMaximo} × ${ladoMaximo} px (cuadrada)`
+    : `${ladoMaximo} px en su lado más largo`;
+  return `Sube una imagen de al menos ${medida}. Se reduce a esa medida y se convierte a WebP automáticamente; si subes una más pequeña, se verá borrosa.`;
+}
+
 export function SubidorImagen({
   bucket,
   carpeta,
@@ -102,9 +121,7 @@ export function SubidorImagen({
         </p>
       )}
       {error && <p className="text-sm text-red-400">{error}</p>}
-      <p className="text-xs text-atenuado">
-        Se reduce y convierte a WebP automáticamente antes de subirla.
-      </p>
+      <p className="text-xs text-atenuado">{medidaRecomendada(preset)}</p>
     </div>
   );
 }

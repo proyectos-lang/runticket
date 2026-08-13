@@ -225,7 +225,6 @@ export async function guardarCategoria(
   const parsed = categoriaSchema.safeParse({
     nombre: formData.get("nombre"),
     distanciaKm: formData.get("distanciaKm"),
-    desnivelM: formData.get("desnivelM"),
     precioBase: formData.get("precioBase"),
     cupoMaximo: formData.get("cupoMaximo"),
     edadMinima: formData.get("edadMinima"),
@@ -245,7 +244,6 @@ export async function guardarCategoria(
   const valores = {
     nombre: d.nombre,
     distancia_km: d.distanciaKm ?? null,
-    desnivel_m: d.desnivelM ?? null,
     precio_base: d.precioBase,
     cupo_maximo: d.cupoMaximo ?? null,
     edad_minima: d.edadMinima ?? null,
