@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { Campo } from "@/components/ui/Campo";
+import { useActionState, useState } from "react";
+import { Campo, Etiqueta } from "@/components/ui/Campo";
 import { guardarCategoria, type CategoriaState } from "../actions";
 import { Boton } from "@/components/ui/Boton";
 
@@ -34,6 +34,14 @@ export function CategoriaForm({
     initialState
   );
 
+  /**
+   * «Sin costo» como casilla y no como un cero que hay que adivinar.
+   *
+   * Al editar arranca marcada si el precio ya era cero, para que la casilla
+   * describa lo que hay y no lo contradiga.
+   */
+  const [gratuita, setGratuita] = useState(categoria ? Number(categoria.precio_base) === 0 : false);
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <div className="grid gap-3 sm:grid-cols-4">
@@ -56,20 +64,48 @@ export function CategoriaForm({
           ayuda="Alimenta el filtro público"
           errors={state.errors?.distanciaKm}
         />
-        <Campo
-          label="Precio"
-          name="precioBase"
-          type="number"
-          step="0.01"
-          min="0"
-          required
-          defaultValue={categoria?.precio_base ?? ""}
-          // Que el cero sea una opción visible y no algo que haya que suponer:
-          // una categoría sin costo se inscribe sola, sin pasar por pagos.
-          ayuda="Pon 0 para que sea gratis: el corredor queda inscrito al instante, con su dorsal y su QR, sin esperar aprobación de pago."
-          errors={state.errors?.precioBase}
-        />
+        {/*
+          Con la casilla marcada el campo desaparece y su valor viaja en un
+          `hidden`. No se deja visible y deshabilitado por dos motivos: un input
+          `disabled` **no se envía**, así que `precioBase` llegaría vacío y la
+          validación lo rechazaría; y un campo de precio a la vista en una
+          categoría gratuita invita a teclear en él.
+        */}
+        {gratuita ? (
+          <div className="flex flex-col gap-1.5">
+            <Etiqueta>Precio</Etiqueta>
+            <input type="hidden" name="precioBase" value="0" />
+            <p className="flex h-11 items-center font-mono text-sm font-bold text-cian">Gratis</p>
+          </div>
+        ) : (
+          <Campo
+            label="Precio"
+            name="precioBase"
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            defaultValue={categoria?.precio_base ?? ""}
+            errors={state.errors?.precioBase}
+          />
+        )}
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-linea bg-superficie-2 px-4 py-3">
+        <input
+          type="checkbox"
+          checked={gratuita}
+          onChange={(e) => setGratuita(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-[var(--color-naranja)]"
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-texto">Sin costo</span>
+          <span className="text-xs text-atenuado">
+            El corredor queda inscrito al instante, con su dorsal y su código QR, sin pasar por
+            aprobación de pago.
+          </span>
+        </span>
+      </label>
 
       <div className="grid gap-3 sm:grid-cols-4">
         <Campo
