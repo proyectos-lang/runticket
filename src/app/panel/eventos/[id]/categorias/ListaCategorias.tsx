@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { MedidorOcupacion } from "@/components/panel/Medidores";
 import { Aviso } from "@/components/ui/Aviso";
-import { formatPrecio, formatDistancia } from "@/lib/format";
+import { formatPrecioOferta, formatDistancia } from "@/lib/format";
 import { eliminarCategoria } from "../actions";
 import { CategoriaForm, type ValoresCategoria } from "./CategoriaForm";
 
@@ -51,8 +51,12 @@ export function ListaCategorias({
                     {formatDistancia(c.distancia_km)}
                   </span>
                 )}
-                <span className="tabular font-mono text-[0.78125rem] font-bold text-texto">
-                  {formatPrecio(Number(c.precio_base), moneda)}
+                <span
+                  className={`tabular font-mono text-[0.78125rem] font-bold ${
+                    Number(c.precio_base) === 0 ? "text-cian" : "text-texto"
+                  }`}
+                >
+                  {formatPrecioOferta(Number(c.precio_base), moneda)}
                 </span>
               </p>
               <p className="tabular font-mono text-[0.65625rem] uppercase tracking-etiqueta text-mudo">

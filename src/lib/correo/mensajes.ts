@@ -75,6 +75,19 @@ export async function avisarInscripcionRecibida(inscripcionIds: string[]): Promi
   const evento = await cargarEvento(admin, inscripciones[0].evento_id);
   if (!evento) return;
 
+  /**
+   * Sin costo no hay nada que coordinar: el disparador ya asignó los dorsales al
+   * insertar, así que en vez del acuse «falta pagar» va directamente el correo
+   * con el dorsal y el QR de cada uno.
+   *
+   * Se mira el importe y no si la categoría es gratuita, para que un cupón del
+   * 100 % caiga por el mismo camino: el criterio es el mismo que usa la base.
+   */
+  if (inscripciones.every((i) => Number(i.precio_pagado) === 0)) {
+    await avisarDorsalListo(inscripciones.map((i) => i.id), "gratis");
+    return;
+  }
+
   // El destinatario es quien hizo la operación; con acompañantes, el titular.
   const titularId = inscripciones[0].created_by ?? inscripciones[0].corredor_id;
   const { data: titular } = await admin
@@ -231,14 +244,43 @@ export async function avisarPagoConfirmado(pagoId: string): Promise<void> {
 
   // El dorsal lo asigna un disparador al confirmarse el pago, así que a estas
   // alturas ya existe.
-  let consulta = admin
-    .from("inscripciones")
-    .select("id, corredor_id, evento_id, numero_dorsal, codigo_qr, talla, estado");
+  let consulta = admin.from("inscripciones").select("id");
   consulta = pago.grupo_inscripcion_id
     ? consulta.eq("grupo_inscripcion_id", pago.grupo_inscripcion_id)
     : consulta.eq("id", pago.inscripcion_id!);
 
-  const { data: inscripciones } = await consulta.eq("estado", "activa");
+  const { data: suyas } = await consulta.eq("estado", "activa");
+  await avisarDorsalListo((suyas ?? []).map((i) => i.id), "pago_confirmado");
+}
+
+/**
+ * Manda a cada corredor su dorsal y su QR.
+ *
+ * Se llega aquí por **dos caminos** y por eso está separado del pago:
+ *
+ *  - `pago_confirmado`: el organizador dio el cobro por bueno y el disparador
+ *    asignó el dorsal.
+ *  - `gratis`: la inscripción no costaba nada, así que
+ *    `auto_asignar_dorsal_gratis` (migración 0005) le puso dorsal en el mismo
+ *    instante de crearse. **Aquí no hay ni habrá fila en `pagos`**, así que sin
+ *    este camino el corredor de una carrera sin costo se quedaba sin su QR: era
+ *    el único que no recibía nada.
+ *
+ * Lo único que cambia entre los dos es cómo se explica; el dorsal, el QR y el
+ * enlace son los mismos.
+ */
+export async function avisarDorsalListo(
+  inscripcionIds: string[],
+  motivo: "pago_confirmado" | "gratis"
+): Promise<void> {
+  if (!inscripcionIds.length) return;
+  const admin = createAdminClient();
+
+  const { data: inscripciones } = await admin
+    .from("inscripciones")
+    .select("id, corredor_id, evento_id, numero_dorsal, codigo_qr, talla, estado")
+    .in("id", inscripcionIds)
+    .eq("estado", "activa");
   if (!inscripciones?.length) return;
 
   const { data: evento } = await admin
@@ -264,11 +306,14 @@ export async function avisarPagoConfirmado(pagoId: string): Promise<void> {
     const html = maqueta({
       asunto: `Tu dorsal para ${evento.nombre}`,
       preencabezado: `Dorsal ${i.numero_dorsal ?? ""} · ${cuando}`,
-      titulo: "Tu pago está confirmado",
+      titulo: motivo === "gratis" ? "Ya estás dentro" : "Tu pago está confirmado",
       bloques: [
         {
           tipo: "parrafo",
-          texto: `${esc(perfil?.nombres ?? "Hola")}, el organizador confirmó tu pago de <strong>${esc(evento.nombre)}</strong>. Tu plaza está asegurada.`,
+          texto:
+            motivo === "gratis"
+              ? `${esc(perfil?.nombres ?? "Hola")}, tu inscripción a <strong>${esc(evento.nombre)}</strong> está lista. Esta carrera no tiene costo, así que no hay nada más que hacer.`
+              : `${esc(perfil?.nombres ?? "Hola")}, el organizador confirmó tu pago de <strong>${esc(evento.nombre)}</strong>. Tu plaza está asegurada.`,
         },
         ...(i.numero_dorsal !== null
           ? ([{ tipo: "dato", etiqueta: "Tu dorsal", valor: String(i.numero_dorsal) }] as const)
@@ -288,7 +333,7 @@ export async function avisarPagoConfirmado(pagoId: string): Promise<void> {
       para,
       asunto: `Tu dorsal para ${evento.nombre}`,
       html,
-      texto: `Tu pago de ${evento.nombre} está confirmado.\nDorsal: ${i.numero_dorsal ?? "por asignar"}\nCuándo: ${cuando}\n\nTu inscripción: ${sitio()}/portal/inscripciones/${i.id}`,
+      texto: `${motivo === "gratis" ? `Tu inscripción a ${evento.nombre} está lista; esta carrera no tiene costo.` : `Tu pago de ${evento.nombre} está confirmado.`}\nDorsal: ${i.numero_dorsal ?? "por asignar"}\nCuándo: ${cuando}\n\nTu inscripción: ${sitio()}/portal/inscripciones/${i.id}`,
       adjuntos: [await adjuntoQr(i.codigo_qr, i.numero_dorsal)],
     });
   }

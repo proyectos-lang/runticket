@@ -6,7 +6,7 @@ import { EtiquetaMono } from "@/components/ui/Datos";
 import { Select } from "@/components/ui/Select";
 import { Campo } from "@/components/ui/Campo";
 import { Boton } from "@/components/ui/Boton";
-import { formatPrecio, formatDistancia } from "@/lib/format";
+import { formatPrecioOferta, formatDistancia } from "@/lib/format";
 import { PARENTESCOS, SEXOS } from "@/lib/validacion/acompanantes";
 import type { AcompananteInscribible } from "@/lib/acompanantes/inscribibles";
 import { agregarAcompanante } from "./actions";
@@ -228,7 +228,7 @@ export function AcompanantesInscripcion({
                       opciones={a.categorias.map((c) => ({
                         valor: c.id,
                         etiqueta: c.elegible
-                          ? `${c.nombre}${c.distancia_km !== null ? ` · ${formatDistancia(c.distancia_km)}` : ""} — ${formatPrecio(Number(c.precio_vigente), moneda)}`
+                          ? `${c.nombre}${c.distancia_km !== null ? ` · ${formatDistancia(c.distancia_km)}` : ""} — ${formatPrecioOferta(Number(c.precio_vigente), moneda)}`
                           : `${c.nombre} — ${c.motivo}`,
                       }))}
                     />
@@ -367,7 +367,7 @@ export function AcompanantesInscripcion({
       {seleccion.length > 0 && (
         <p className="tabular text-right font-mono text-xs uppercase tracking-etiqueta text-atenuado">
           {seleccion.length} {seleccion.length === 1 ? "acompañante" : "acompañantes"} ·{" "}
-          <span className="font-bold text-texto">{formatPrecio(total, moneda)}</span> además de lo tuyo
+          <span className="font-bold text-texto">{formatPrecioOferta(total, moneda)}</span> además de lo tuyo
         </p>
       )}
     </section>

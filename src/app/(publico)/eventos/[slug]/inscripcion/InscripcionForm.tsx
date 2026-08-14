@@ -14,7 +14,7 @@ import { RadioFila } from "@/components/ui/RadioFila";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { Aviso } from "@/components/ui/Aviso";
 import { Campo, CLASE_CAMPO, Etiqueta } from "@/components/ui/Campo";
-import { formatPrecio, formatDistancia } from "@/lib/format";
+import { formatPrecioOferta, formatDistancia } from "@/lib/format";
 import { inscribirse, comprobarCupon, type InscripcionState, type CuponState } from "./actions";
 import type { CategoriaConCupo } from "@/lib/eventos/consultas";
 
@@ -139,7 +139,7 @@ export function InscripcionForm({
                     categoriaId === c.id ? "text-naranja" : "text-texto"
                   }`}
                 >
-                  {formatPrecio(Number(c.precio_vigente), moneda)}
+                  {formatPrecioOferta(Number(c.precio_vigente), moneda)}
                 </span>
               }
             />
@@ -354,7 +354,7 @@ export function InscripcionForm({
                 )}
               </span>
               <span className="tabular shrink-0 font-mono text-texto">
-                {seleccionada ? formatPrecio(Number(seleccionada.precio_vigente), moneda) : "—"}
+                {seleccionada ? formatPrecioOferta(Number(seleccionada.precio_vigente), moneda) : "—"}
               </span>
             </div>
 
@@ -365,7 +365,7 @@ export function InscripcionForm({
                   {a.categoria && <span className="text-mudo"> · {a.categoria}</span>}
                 </span>
                 <span className="tabular shrink-0 font-mono text-texto">
-                  {formatPrecio(a.precio, moneda)}
+                  {formatPrecioOferta(a.precio, moneda)}
                 </span>
               </div>
             ))}
@@ -376,7 +376,7 @@ export function InscripcionForm({
               {personas === 1 ? "Total" : `Total · ${personas} personas`}
             </span>
             <span className="tabular text-2xl font-extrabold tracking-display text-texto">
-              {seleccionada ? formatPrecio(total, moneda) : "—"}
+              {seleccionada ? formatPrecioOferta(total, moneda) : "—"}
             </span>
           </div>
 
@@ -421,7 +421,9 @@ export function InscripcionForm({
             {pending
               ? "Confirmando…"
               : seleccionada
-                ? `Confirmar · ${formatPrecio(total, moneda)}`
+                ? total === 0
+                  ? "Confirmar inscripción"
+                  : `Confirmar · ${formatPrecioOferta(total, moneda)}`
                 : "Confirmar inscripción"}
           </Boton>
         )}

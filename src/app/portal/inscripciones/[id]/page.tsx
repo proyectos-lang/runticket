@@ -68,9 +68,19 @@ export default async function InscripcionDetallePage({
 
   const entregas = await puntosDeEntrega(inscripcion.evento_id);
 
+  /**
+   * Inscripción sin costo.
+   *
+   * Se mira el importe y no si la categoría es gratuita: un cupón del 100 % deja
+   * el mismo caso —nada que pagar— y merece el mismo trato. Es además el mismo
+   * criterio que usa el disparador `auto_asignar_dorsal_gratis` de la base, que
+   * es quien ya le asignó el dorsal al inscribirse.
+   */
+  const esGratis = Number(inscripcion.precio_pagado) === 0;
+
   // Un pago resuelto (confirmado o sin importe) libera el naranja de la pantalla
   // para el CTA de retiro del kit; ver el comentario de SeccionPago.
-  const pagoResuelto = pago?.estado === "pagado" || Number(inscripcion.precio_pagado) === 0;
+  const pagoResuelto = pago?.estado === "pagado" || esGratis;
 
   const { data: tallas } = await supabase
     .from("evento_tallas")
@@ -127,10 +137,17 @@ export default async function InscripcionDetallePage({
             <span className="flex size-14 items-center justify-center rounded-full bg-naranja text-2xl text-tinta">
               ✓
             </span>
-            <h1 className="display text-3xl text-texto">Estás inscrito</h1>
+            <h1 className="display text-3xl text-texto">
+              {esGratis ? "Ya estás dentro" : "Estás inscrito"}
+            </h1>
+            {/* En una carrera sin costo no hay nada que coordinar: el dorsal se
+                asignó al inscribirse. Prometer una llamada del organizador que
+                no va a llegar deja al corredor esperando y acaba en una consulta
+                de soporte. */}
             <p className="max-w-md text-sm text-atenuado">
-              El organizador te contactará para coordinar el pago. Tu dorsal se asigna en cuanto lo
-              confirme.
+              {esGratis
+                ? "Esta carrera no tiene costo, así que no hay nada más que hacer: tu dorsal y tu código QR ya están listos aquí abajo."
+                : "El organizador te contactará para coordinar el pago. Tu dorsal se asigna en cuanto lo confirme."}
             </p>
           </div>
         </div>

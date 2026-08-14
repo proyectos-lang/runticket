@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { formatFechaMono, formatPrecio, formatDistancia } from "@/lib/format";
+import { formatFechaMono, formatPrecioOferta, formatDistancia } from "@/lib/format";
 import { DISCIPLINA_LABEL } from "@/lib/disciplinas";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
 import type { EventoPublico } from "@/lib/eventos/consultas";
@@ -101,7 +101,7 @@ export function TarjetaCarrera({
             <div className="flex flex-col">
               <EtiquetaMono>Desde</EtiquetaMono>
               <span className="tabular text-lg font-extrabold tracking-display text-texto">
-                {formatPrecio(evento.precioDesde, evento.moneda)}
+                {formatPrecioOferta(evento.precioDesde, evento.moneda)}
               </span>
             </div>
           ) : (

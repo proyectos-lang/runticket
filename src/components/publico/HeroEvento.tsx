@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { formatFechaMono, formatHoraMono, formatPrecio, formatDistancia } from "@/lib/format";
+import { formatFechaMono, formatHoraMono, formatPrecioOferta, formatDistancia } from "@/lib/format";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
 import type { EventoPublico } from "@/lib/eventos/consultas";
@@ -88,7 +88,7 @@ export function HeroEvento({
               <div className="flex flex-col gap-1 px-5 first:pl-0 last:pr-0">
                 <EtiquetaMono>Desde</EtiquetaMono>
                 <span className="tabular font-mono text-[0.9375rem] font-bold text-naranja">
-                  {formatPrecio(evento.precioDesde, evento.moneda)}
+                  {formatPrecioOferta(evento.precioDesde, evento.moneda)}
                 </span>
               </div>
             )}

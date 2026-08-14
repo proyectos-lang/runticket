@@ -2,7 +2,7 @@ import Image from "next/image";
 import {
   formatFechaMono,
   formatHoraMono,
-  formatPrecio,
+  formatPrecioOferta,
   formatDistancia,
 } from "@/lib/format";
 import { DISCIPLINA_LABEL } from "@/lib/disciplinas";
@@ -100,7 +100,7 @@ export function FilaCarrera({
         <div className="flex flex-col">
           <EtiquetaMono>Desde</EtiquetaMono>
           <span className="tabular text-2xl font-extrabold tracking-display text-texto">
-            {evento.precioDesde !== null ? formatPrecio(evento.precioDesde, evento.moneda) : "—"}
+            {evento.precioDesde !== null ? formatPrecioOferta(evento.precioDesde, evento.moneda) : "—"}
           </span>
         </div>
         <BotonEnlace

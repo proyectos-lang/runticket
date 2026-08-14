@@ -64,6 +64,9 @@ export function CategoriaForm({
           min="0"
           required
           defaultValue={categoria?.precio_base ?? ""}
+          // Que el cero sea una opción visible y no algo que haya que suponer:
+          // una categoría sin costo se inscribe sola, sin pasar por pagos.
+          ayuda="Pon 0 para que sea gratis: el corredor queda inscrito al instante, con su dorsal y su QR, sin esperar aprobación de pago."
           errors={state.errors?.precioBase}
         />
       </div>

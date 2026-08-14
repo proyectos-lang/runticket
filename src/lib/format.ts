@@ -116,6 +116,21 @@ export function formatPrecio(monto: number, moneda = "HNL"): string {
   }).format(monto);
 }
 
+/**
+ * El precio **como oferta al corredor**: cero se dice «Gratis», no «L 0.00».
+ *
+ * Va aparte de `formatPrecio` y no dentro a propósito. `formatPrecio` también
+ * pinta dinero contable —recaudado, pendiente de cobro, importe de un pago— y
+ * ahí el cero es una cifra legítima: un «Recaudado: Gratis» sería absurdo. La
+ * diferencia no es de formato, es de qué se está diciendo.
+ *
+ * Se usa en el catálogo, la ficha, el selector de distancia y el resumen de la
+ * inscripción: los sitios donde el número responde a «¿cuánto me cuesta?».
+ */
+export function formatPrecioOferta(monto: number, moneda = "HNL"): string {
+  return monto === 0 ? "Gratis" : formatPrecio(monto, moneda);
+}
+
 export function formatDistancia(km: number | null): string | null {
   if (km === null || km === undefined) return null;
   return Number.isInteger(km) ? `${km} K` : `${km} km`;

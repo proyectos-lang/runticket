@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatPrecio, formatDistancia, formatRangoEdad } from "@/lib/format";
+import { formatPrecioOferta, formatDistancia, formatRangoEdad } from "@/lib/format";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { RadioFila } from "@/components/ui/RadioFila";
 import { EtiquetaMono } from "@/components/ui/Datos";
@@ -84,7 +84,7 @@ export function SelectorDistancia({
                     id === c.id ? "text-naranja" : "text-texto"
                   }`}
                 >
-                  {formatPrecio(Number(c.precio_vigente), moneda)}
+                  {formatPrecioOferta(Number(c.precio_vigente), moneda)}
                 </span>
               }
             />
@@ -105,7 +105,7 @@ export function SelectorDistancia({
         <div className="flex flex-col">
           <EtiquetaMono>Total</EtiquetaMono>
           <span className="tabular text-xl font-extrabold tracking-display text-texto">
-            {elegida ? formatPrecio(Number(elegida.precio_vigente), moneda) : "—"}
+            {elegida ? formatPrecioOferta(Number(elegida.precio_vigente), moneda) : "—"}
           </span>
         </div>
         {abierto && elegida ? (
