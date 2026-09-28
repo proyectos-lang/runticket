@@ -22,7 +22,7 @@ export const ESTADO_PAGO_TONO: Record<EstadoPago, Tono> = {
 
 export const METODO_PAGO_LABEL: Record<MetodoPago, string> = {
   whatsapp: "Coordinado por WhatsApp",
-  pasarela: "Pasarela bancaria",
+  pasarela: "Tarjeta · PixelPay",
   comprobante_transferencia: "Comprobante de transferencia",
   efectivo: "Efectivo",
   manual: "Registro manual",

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { iniciarPagoConTarjeta } from "@/lib/pasarela";
 import { dentroDelLimite, MENSAJE_LIMITE } from "@/lib/seguridad";
 import type { PagoState } from "@/app/portal/inscripciones/[id]/actions";
 
@@ -101,4 +102,35 @@ export async function subirComprobanteGrupo(
 
   revalidatePath(`/portal/grupos/${grupoId}`);
   return { status: "enviado" };
+}
+
+/** El titular paga con tarjeta a toda la familia; el importe lo suma la base. */
+export async function pagarGrupoConTarjeta(grupoId: string): Promise<PagoState> {
+  if (!(await dentroDelLimite("pagoTarjeta"))) {
+    return { status: "error", message: MENSAJE_LIMITE };
+  }
+
+  const supabase = await createClient();
+  const { data: grupo } = await supabase
+    .from("grupos_inscripcion")
+    .select("id, evento_id")
+    .eq("id", grupoId)
+    .maybeSingle();
+  if (!grupo) return { status: "error", message: "No encontramos ese grupo." };
+
+  const { data: datosEvento } = await supabase
+    .from("eventos")
+    .select("nombre")
+    .eq("id", grupo.evento_id)
+    .maybeSingle();
+  const evento = datosEvento?.nombre;
+  const resultado = await iniciarPagoConTarjeta(
+    { grupoId },
+    evento ? `Inscripción en grupo · ${evento}` : "Inscripción en grupo RunTicket"
+  );
+
+  if (resultado.tipo === "error") return { status: "error", message: resultado.mensaje };
+  revalidatePath(`/portal/grupos/${grupoId}`);
+  if (resultado.tipo === "redirigir") redirect(resultado.url);
+  return { status: "idle" };
 }

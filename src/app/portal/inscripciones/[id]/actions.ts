@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { iniciarPagoConTarjeta } from "@/lib/pasarela";
+import { dentroDelLimite, MENSAJE_LIMITE } from "@/lib/seguridad";
 
 export type PagoState = {
   status: "idle" | "error" | "enviado";
@@ -95,6 +97,43 @@ export async function subirComprobante(
 
   revalidatePath(`/portal/inscripciones/${inscripcionId}`);
   return { status: "enviado" };
+}
+
+/**
+ * Lleva al corredor a la página de cobro de PixelPay.
+ *
+ * Solo pasa el id de la inscripción: el importe lo fija la base de datos. Si el
+ * pago ya estaba cobrado (volvió a pulsar antes de que llegara el aviso), se
+ * queda aquí y la página lo muestra confirmado.
+ */
+export async function pagarConTarjeta(inscripcionId: string): Promise<PagoState> {
+  if (!(await dentroDelLimite("pagoTarjeta"))) {
+    return { status: "error", message: MENSAJE_LIMITE };
+  }
+
+  const supabase = await createClient();
+  const { data: inscripcion } = await supabase
+    .from("inscripciones")
+    .select("id, evento_id")
+    .eq("id", inscripcionId)
+    .maybeSingle();
+  if (!inscripcion) return { status: "error", message: "No encontramos esa inscripción." };
+
+  const { data: datosEvento } = await supabase
+    .from("eventos")
+    .select("nombre")
+    .eq("id", inscripcion.evento_id)
+    .maybeSingle();
+  const evento = datosEvento?.nombre;
+  const resultado = await iniciarPagoConTarjeta(
+    { inscripcionId },
+    evento ? `Inscripción · ${evento}` : "Inscripción RunTicket"
+  );
+
+  if (resultado.tipo === "error") return { status: "error", message: resultado.mensaje };
+  revalidatePath(`/portal/inscripciones/${inscripcionId}`);
+  if (resultado.tipo === "redirigir") redirect(resultado.url);
+  return { status: "idle" };
 }
 
 export type TallaState = { status: "idle" | "error" | "guardado"; message?: string };

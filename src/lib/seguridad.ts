@@ -28,6 +28,8 @@ export const LIMITES = {
   acompanante: { maximo: 15, ventanaSegundos: 3600 },
   listaEspera: { maximo: 10, ventanaSegundos: 3600 },
   subidaComprobante: { maximo: 15, ventanaSegundos: 3600 },
+  // Cada intento puede crear un cobro en PixelPay.
+  pagoTarjeta: { maximo: 10, ventanaSegundos: 3600 },
   // `validar_cupon` está abierto a visitantes sin sesión: sin freno serviría de
   // oráculo para adivinar códigos promocionales por fuerza bruta.
   cupon: { maximo: 15, ventanaSegundos: 900 },

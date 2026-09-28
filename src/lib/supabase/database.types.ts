@@ -893,6 +893,9 @@ export interface Database {
           proveedor: string | null;
           referencia_externa: string | null;
           comprobante_url: string | null;
+          pasarela_uuid: string | null;
+          pasarela_url: string | null;
+          pasarela_monto: number | null;
           estado: EstadoPago;
           verificado_por: string | null;
           verificado_en: string | null;
@@ -912,6 +915,9 @@ export interface Database {
           proveedor?: string | null;
           referencia_externa?: string | null;
           comprobante_url?: string | null;
+          pasarela_uuid?: string | null;
+          pasarela_url?: string | null;
+          pasarela_monto?: number | null;
           estado?: EstadoPago;
           notas?: string | null;
           created_by?: string | null;
@@ -1209,6 +1215,16 @@ export interface Database {
        * El titular declara el pago de toda la familia. El importe lo suma la
        * base a partir de las inscripciones vivas del grupo.
        */
+      /** Abre (o reutiliza) el pago con tarjeta. Pasa una inscripción o un grupo. */
+      preparar_pago_pasarela: {
+        Args: { p_inscripcion_id?: string | null; p_grupo_id?: string | null };
+        Returns: string;
+      };
+      /** Solo service_role, tras consultar el cobro en PixelPay. */
+      confirmar_pago_pasarela: {
+        Args: { p_pasarela_uuid: string; p_referencia?: string | null };
+        Returns: "pagado" | "ya_pagado" | "ignorado" | "a_revision" | "desconocido";
+      };
       registrar_intento_pago_grupo: {
         Args: {
           p_grupo_id: string;

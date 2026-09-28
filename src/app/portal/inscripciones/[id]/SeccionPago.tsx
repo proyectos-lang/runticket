@@ -37,6 +37,7 @@ const BADGE: Record<EstadoPago, { texto: string; clase: string }> = {
  */
 export function SeccionPago({
   subir,
+  pagarConTarjeta,
   registrarWhatsApp,
   monto,
   moneda,
@@ -48,6 +49,11 @@ export function SeccionPago({
 }: {
   /** Acción de servidor ya enlazada a la inscripción o al grupo. */
   subir: (prev: PagoState, formData: FormData) => Promise<PagoState>;
+  /**
+   * Lleva a la página de cobro de PixelPay. Sin ella (pasarela sin configurar)
+   * el bloque se queda con WhatsApp y el comprobante, como antes.
+   */
+  pagarConTarjeta?: (prev: PagoState, formData: FormData) => Promise<PagoState>;
   /**
    * Deja constancia de que va a coordinar por WhatsApp. Tiene que ser una acción
    * de servidor ya enlazada: desde un componente de servidor no se puede pasar
@@ -69,12 +75,24 @@ export function SeccionPago({
   detalle?: string;
 }) {
   const [state, formAction, pending] = useActionState(subir, initialState);
+  const [estadoTarjeta, accionTarjeta, redirigiendo] = useActionState(
+    pagarConTarjeta ?? (async () => initialState),
+    initialState
+  );
 
   const estado: EstadoPago = pago?.estado ?? "pendiente";
   const pagado = estado === "pagado";
   const enRevision = estado === "en_verificacion";
   const rechazado = estado === "rechazado";
   const badge = BADGE[estado];
+  const conTarjeta = pago?.metodo === "pasarela";
+  // Cobro con tarjeta abierto: el corredor fue a PixelPay y quizá no terminó.
+  const tarjetaEnCurso = conTarjeta && estado === "pendiente";
+
+  // Las opciones se numeran según las que haya: la tarjeta, si está, va primero
+  // porque es la única que confirma sin esperar al organizador.
+  let numero = 0;
+  const siguiente = () => ++numero;
 
   return (
     <section
@@ -104,7 +122,7 @@ export function SeccionPago({
       )}
 
       {pagado ? (
-        <Aviso tono="verde" titulo="El organizador confirmó tu pago">
+        <Aviso tono="verde" titulo={conTarjeta ? "Pago con tarjeta confirmado" : "El organizador confirmó tu pago"}>
           Tu plaza está asegurada
           {verificadoEn &&
             ` desde el ${new Intl.DateTimeFormat("es-HN", { dateStyle: "long" }).format(new Date(verificadoEn))}`}
@@ -124,9 +142,35 @@ export function SeccionPago({
           )}
 
           <div className="flex flex-col gap-5">
+            {pagarConTarjeta && !enRevision && (
+              <form action={accionTarjeta} className="flex flex-col gap-2 border-t border-linea pt-4">
+                <EtiquetaMono>Opción {siguiente()} · Pagar con tarjeta</EtiquetaMono>
+                <p className="text-[0.78125rem] leading-relaxed text-atenuado">
+                  {tarjetaEnCurso
+                    ? "Ya abriste el pago con tarjeta. Si lo completaste, la confirmación llega en unos segundos: recarga esta página. Si no, puedes continuarlo."
+                    : "Pagas en la página segura del banco (PixelPay) con tarjeta de crédito o débito. Tu plaza se confirma al instante."}
+                </p>
+                <Boton
+                  type="submit"
+                  variante="primaria"
+                  disabled={redirigiendo}
+                  className="mt-1 self-start"
+                >
+                  {redirigiendo
+                    ? "Abriendo el pago…"
+                    : tarjetaEnCurso
+                      ? "Continuar el pago con tarjeta"
+                      : "Pagar con tarjeta"}
+                </Boton>
+                {estadoTarjeta.status === "error" && (
+                  <p className="text-sm text-rojo">{estadoTarjeta.message}</p>
+                )}
+              </form>
+            )}
+
             {enlaceWa && (
               <div className="flex flex-col gap-2 border-t border-linea pt-4">
-                <EtiquetaMono>Opción 1 · Coordinar por WhatsApp</EtiquetaMono>
+                <EtiquetaMono>Opción {siguiente()} · Coordinar por WhatsApp</EtiquetaMono>
                 <p className="text-[0.78125rem] leading-relaxed text-atenuado">
                   Se abre WhatsApp con la referencia, la carrera, tu categoría y el monto ya
                   escritos.
@@ -139,7 +183,7 @@ export function SeccionPago({
                     // Deja constancia del intento sin bloquear la apertura de WhatsApp.
                     void registrarWhatsApp();
                   }}
-                  className={claseBoton("primaria", "md", "mt-1 self-start")}
+                  className={claseBoton(pagarConTarjeta ? "secundaria" : "primaria", "md", "mt-1 self-start")}
                 >
                   Escribir al organizador
                 </a>
@@ -151,7 +195,7 @@ export function SeccionPago({
             {!enRevision && (
               <form action={formAction} className="flex flex-col gap-3 border-t border-linea pt-4">
                 <EtiquetaMono>
-                  Opción {enlaceWa ? "2" : "1"} · Subir comprobante de transferencia
+                  Opción {siguiente()} · Subir comprobante de transferencia
                 </EtiquetaMono>
                 <input
                   type="file"

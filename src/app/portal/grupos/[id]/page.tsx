@@ -1,15 +1,17 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatFechaHora, formatPrecio, formatDistancia } from "@/lib/format";
 import { enlaceWhatsApp } from "@/lib/pagos";
+import { comprobarPagoPendiente } from "@/lib/pasarela";
+import { pixelpayConfigurado } from "@/lib/pixelpay";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { Aviso } from "@/components/ui/Aviso";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { SeccionPago } from "@/app/portal/inscripciones/[id]/SeccionPago";
-import { subirComprobanteGrupo, marcarPagoGrupoPorWhatsApp } from "./actions";
+import { subirComprobanteGrupo, marcarPagoGrupoPorWhatsApp, pagarGrupoConTarjeta } from "./actions";
 
 export const metadata: Metadata = {
   title: "Mi grupo | RunTicket",
@@ -66,7 +68,7 @@ export default async function GrupoPage({
         .maybeSingle(),
       supabase
         .from("pagos")
-        .select("estado, metodo, referencia_externa, notas, comprobante_url, verificado_en, monto, moneda")
+        .select("estado, metodo, referencia_externa, notas, comprobante_url, verificado_en, monto, moneda, pasarela_uuid")
         .eq("grupo_inscripcion_id", id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -100,6 +102,10 @@ export default async function GrupoPage({
       </div>
     );
   }
+
+  // Mismo cierre que en la inscripción suelta: si el cobro con tarjeta ya se
+  // pagó, se confirma y se recarga para enseñar los dorsales.
+  if (await comprobarPagoPendiente(pago)) redirect(`/portal/grupos/${id}`);
 
   const gente = personas ?? [];
   if (gente.length === 0) notFound();
@@ -226,6 +232,9 @@ export default async function GrupoPage({
       {total > 0 ? (
         <SeccionPago
           subir={subirComprobanteGrupo.bind(null, grupo.id)}
+          pagarConTarjeta={
+            pixelpayConfigurado() ? pagarGrupoConTarjeta.bind(null, grupo.id) : undefined
+          }
           registrarWhatsApp={marcarPagoGrupoPorWhatsApp.bind(null, grupo.id)}
           monto={pago ? Number(pago.monto) : total}
           moneda={moneda}

@@ -1,16 +1,18 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatFechaHora } from "@/lib/format";
 import { enlaceWhatsApp } from "@/lib/pagos";
+import { comprobarPagoPendiente } from "@/lib/pasarela";
+import { pixelpayConfigurado } from "@/lib/pixelpay";
 import { puntosDeEntrega } from "@/lib/eventos/consultas";
 import { TarjetaDorsal } from "@/components/portal/TarjetaDorsal";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { Chip } from "@/components/ui/Chip";
 import { SeccionPago } from "./SeccionPago";
-import { subirComprobante, marcarPagoPorWhatsApp, responderEncuesta } from "./actions";
+import { subirComprobante, marcarPagoPorWhatsApp, pagarConTarjeta, responderEncuesta } from "./actions";
 import { CambiarTalla } from "./CambiarTalla";
 import { EncuestaNps } from "./EncuestaNps";
 
@@ -43,7 +45,7 @@ export default async function InscripcionDetallePage({
         .maybeSingle(),
       supabase
         .from("pagos")
-        .select("estado, metodo, referencia_externa, notas, comprobante_url, verificado_en")
+        .select("estado, metodo, referencia_externa, notas, comprobante_url, verificado_en, pasarela_uuid")
         .eq("inscripcion_id", id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -55,6 +57,11 @@ export default async function InscripcionDetallePage({
         .maybeSingle(),
       supabase.from("perfiles").select("nombres, apellidos").eq("id", inscripcion.corredor_id).single(),
     ]);
+
+  // De vuelta de PixelPay: si el cobro ya está pagado, se cierra aquí mismo y
+  // se recarga para que el dorsal y el estado salgan al día. No depende de que
+  // haya llegado el aviso de PixelPay.
+  if (await comprobarPagoPendiente(pago)) redirect(`/portal/inscripciones/${id}`);
 
   // La encuesta solo se pide una vez y solo por una carrera ya corrida. La RLS
   // de `encuestas_satisfaccion` limita esto a las respuestas propias.
@@ -377,6 +384,9 @@ export default async function InscripcionDetallePage({
           <SeccionPago
             verificadoEn={pago?.verificado_en ?? null}
             subir={subirComprobante.bind(null, inscripcion.id)}
+            pagarConTarjeta={
+              pixelpayConfigurado() ? pagarConTarjeta.bind(null, inscripcion.id) : undefined
+            }
             registrarWhatsApp={marcarPagoPorWhatsApp.bind(null, inscripcion.id)}
             monto={Number(inscripcion.precio_pagado)}
             moneda={inscripcion.moneda}
