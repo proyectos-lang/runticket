@@ -12,6 +12,8 @@ import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { generarPdfDeclaracion } from "@/lib/pdf/declaracion";
 import { formatFechaHora, formatPrecio } from "@/lib/format";
 import { dentroDelLimite, MENSAJE_LIMITE, auditar } from "@/lib/seguridad";
+import { iniciarPagoConTarjeta } from "@/lib/pasarela";
+import { pixelpayConfigurado } from "@/lib/pixelpay";
 import { categoriasConCupo } from "@/lib/eventos/consultas";
 import { acompananteSchema } from "@/lib/validacion/acompanantes";
 import { altaDeAcompanante } from "@/lib/acompanantes/alta";
@@ -409,6 +411,29 @@ export async function inscribirse(
         `Tu inscripción quedó lista, pero ${fallidos.length} acompañante(s) no: ${fallidos.join(" ")}`
       )}`
     );
+  }
+
+  /**
+   * «Pagar con tarjeta» en el último paso: la inscripción ya está hecha, así
+   * que de aquí se va directo a la página de cobro de PixelPay. El importe no
+   * sale del formulario; lo calcula la base igual que desde el portal.
+   *
+   * Si la pasarela falla, la inscripción no se pierde: se aterriza en el portal,
+   * donde el botón de tarjeta sigue disponible, con el motivo a la vista.
+   */
+  if (formData.get("pago") === "tarjeta" && pixelpayConfigurado()) {
+    const resultado = await iniciarPagoConTarjeta(
+      grupoId ? { grupoId } : { inscripcionId: inscripcionId as string },
+      `${grupoId ? "Inscripción en grupo" : "Inscripción"} · ${evento.nombre}`
+    );
+    if (resultado.tipo === "redirigir") redirect(resultado.url);
+    if (resultado.tipo === "error") {
+      redirect(
+        `${destino}?nueva=1&aviso=${encodeURIComponent(
+          `Tu inscripción quedó lista, pero no pudimos abrir el pago con tarjeta: ${resultado.mensaje}`
+        )}`
+      );
+    }
   }
 
   redirect(`${destino}?nueva=1`);

@@ -13,9 +13,17 @@ import {
 import { Chip } from "@/components/ui/Chip";
 import { TarjetaMetrica, EtiquetaMono } from "@/components/ui/Datos";
 import { CLASE_CAMPO } from "@/components/ui/Campo";
-import { cambiarEstadoPago } from "./actions";
+import { cambiarEstadoPago, conciliarPagosPixelPay, verificarPagoPixelPay } from "./actions";
+import { Aviso } from "@/components/ui/Aviso";
 import { RegistrarPagoForm } from "./RegistrarPagoForm";
 import { Boton } from "@/components/ui/Boton";
+
+/** Cómo llama PixelPay a cada estado de un cobro, en palabras del panel. */
+const ESTADO_PIXELPAY: Record<string, string> = {
+  paid: "Pagado",
+  open: "Sin pagar",
+  pending: "Sin pagar",
+};
 
 export default async function PagosPage({
   searchParams,
@@ -40,7 +48,7 @@ export default async function PagosPage({
   const { data: pagos } = await supabase
     .from("pagos")
     .select(
-      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, comprobante_url, referencia_externa, notas, created_at, verificado_en"
+      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, comprobante_url, referencia_externa, notas, created_at, verificado_en, pasarela_uuid, pasarela_estado, pasarela_verificado_en, pasarela_transaccion, pasarela_autorizacion, pasarela_monto_cobrado, pasarela_alerta"
     )
     .eq("empresa_id", membresia.empresaId)
     .order("created_at", { ascending: false });
@@ -134,7 +142,16 @@ export default async function PagosPage({
   if (eventoFiltro) filas = filas.filter((f) => f.eventoId === eventoFiltro);
 
   const resumen = resumirConciliacion(filas);
-  const porVerificar = filas.filter((f) => f.estado === "en_verificacion" || f.estado === "pendiente");
+  // Un cobro con tarjeta pendiente no es un comprobante que aprobar: es un
+  // corredor que abrió el pago y no lo terminó. Si estuviera aquí, «Aprobar»
+  // daría por cobrado un dinero que PixelPay nunca recibió.
+  const porVerificar = filas.filter(
+    (f) =>
+      f.estado === "en_verificacion" ||
+      (f.estado === "pendiente" && !(f.metodo === "pasarela" && f.pasarela_uuid))
+  );
+  const conTarjeta = filas.filter((f) => f.pasarela_uuid);
+  const conAlerta = conTarjeta.filter((f) => f.pasarela_alerta);
   const moneda = eventos?.[0]?.moneda ?? "HNL";
 
   // Quién sigue debiendo: activa y sin ningún pago en estado 'pagado'. Se mira
@@ -219,6 +236,12 @@ export default async function PagosPage({
           </a>
         </div>
       </div>
+
+      {conAlerta.length > 0 && (
+        <Aviso tono="rojo" titulo={`${conAlerta.length} pago(s) con tarjeta no cuadran con PixelPay`}>
+          Revísalos en «Pagos con tarjeta» más abajo antes de entregar kits o dar dorsales por buenos.
+        </Aviso>
+      )}
 
       {/* Totales */}
       <div className="grid gap-4 sm:grid-cols-3">
@@ -323,6 +346,10 @@ export default async function PagosPage({
                 </div>
               </div>
 
+              {f.pasarela_alerta && (
+                <p className="text-sm text-rojo">{f.pasarela_alerta}</p>
+              )}
+
               {urlsComprobante.has(f.id) && (
                 <a
                   href={urlsComprobante.get(f.id)}
@@ -335,6 +362,11 @@ export default async function PagosPage({
               )}
 
               <div className="flex flex-wrap items-end gap-2 border-t pt-3 border-linea">
+                {f.pasarela_uuid && (
+                  <form action={verificarPagoPixelPay.bind(null, f.id)}>
+                    <Boton variante="secundaria">Verificar en PixelPay</Boton>
+                  </form>
+                )}
                 <form action={cambiarEstadoPago.bind(null, f.id, "pagado")}>
                   {/* Solo el primero de la cola lleva naranja: con ocho
                       comprobantes, ocho botones naranja no señalan ninguno. */}
@@ -362,6 +394,84 @@ export default async function PagosPage({
           </p>
         )}
       </section>
+
+      {/* Conciliación con PixelPay */}
+      {conTarjeta.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <EtiquetaMono>Pagos con tarjeta · PixelPay</EtiquetaMono>
+              <p className="text-sm text-atenuado">
+                Cada pago se contrasta con PixelPay: al pagar, cada día de forma automática y
+                cuando pulsas «Verificar». Un pago solo cuenta como cobrado si PixelPay lo respalda.
+              </p>
+            </div>
+            <form action={conciliarPagosPixelPay}>
+              <Boton variante="secundaria">Verificar todos en PixelPay</Boton>
+            </form>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-linea">
+            <table className="w-full min-w-3xl text-left text-sm">
+              <thead className="text-xs uppercase tracking-wide bg-superficie text-atenuado">
+                <tr>
+                  <th className="px-4 py-3">Corredor</th>
+                  <th className="px-4 py-3">Monto</th>
+                  <th className="px-4 py-3">RunTicket</th>
+                  <th className="px-4 py-3">PixelPay</th>
+                  <th className="px-4 py-3">Transacción · Autorización</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-linea">
+                {conTarjeta.map((f) => (
+                  <tr key={f.id} className={f.pasarela_alerta ? "bg-red-500/6" : "bg-superficie/40"}>
+                    <td className="px-4 py-3">
+                      <p className="text-texto">{f.corredor}</p>
+                      <p className="text-xs text-atenuado">{f.eventoNombre}</p>
+                      {f.pasarela_alerta && (
+                        <p className="mt-1 text-xs text-rojo">{f.pasarela_alerta}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-medium tabular-nums text-texto">
+                      {formatPrecio(Number(f.monto), f.moneda)}
+                      {f.pasarela_monto_cobrado !== null &&
+                        Number(f.pasarela_monto_cobrado) !== Number(f.monto) && (
+                          <p className="text-xs text-rojo">
+                            PixelPay: {formatPrecio(Number(f.pasarela_monto_cobrado), f.moneda)}
+                          </p>
+                        )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Chip tono={ESTADO_PAGO_TONO[f.estado]}>{ESTADO_PAGO_LABEL[f.estado]}</Chip>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Chip tono={f.pasarela_estado === "paid" ? "exito" : f.pasarela_estado ? "neutro" : "aviso"}>
+                        {ESTADO_PIXELPAY[f.pasarela_estado ?? ""] ?? f.pasarela_estado ?? "Sin verificar"}
+                      </Chip>
+                      {f.pasarela_verificado_en && (
+                        <p className="mt-1 text-xs text-atenuado">
+                          Verificado {formatFechaCorta(f.pasarela_verificado_en)}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-atenuado">
+                      {f.pasarela_transaccion ?? "—"}
+                      {f.pasarela_autorizacion && <> · {f.pasarela_autorizacion}</>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <form action={verificarPagoPixelPay.bind(null, f.id)}>
+                        <button className="text-xs text-mudo underline underline-offset-2 hover:text-texto">
+                          Verificar
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {/* Cobro fuera de la plataforma */}
       <section className="flex flex-col gap-3">

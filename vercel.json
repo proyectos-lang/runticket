@@ -1,4 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "git rev-parse --verify HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- ':(exclude)*.md' ':(exclude)docs/'"
+  "ignoreCommand": "git rev-parse --verify HEAD^ >/dev/null 2>&1 && git diff --quiet HEAD^ HEAD -- ':(exclude)*.md' ':(exclude)docs/'",
+  "crons": [{ "path": "/api/pagos/pixelpay/conciliar", "schedule": "0 11 * * *" }]
 }

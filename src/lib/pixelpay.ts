@@ -126,11 +126,44 @@ export async function crearCobro(datos: {
   return { uuid: r.payment_uuid, url: r.url };
 }
 
+export type ConsultaCobro = {
+  /** `paid` cuando se cobró; `open` o `pending` mientras nadie lo pague. */
+  estado: string;
+  /** Importe cobrado, si PixelPay lo informa. */
+  monto: number | null;
+  /** Identificador de la transacción en el procesador. */
+  transaccion: string | null;
+  /** Código de autorización del banco emisor. */
+  autorizacion: string | null;
+  /** La respuesta completa, para guardarla como evidencia. */
+  crudo: Record<string, unknown>;
+};
+
+/** Primer campo presente de la lista, como texto. */
+function campo(datos: Record<string, unknown>, nombres: string[]): string | null {
+  for (const n of nombres) {
+    const v = datos[n];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim();
+  }
+  return null;
+}
+
+/** «L1,400.00», "1400", 1400 → 1400. Null si no hay un número reconocible. */
+function importe(valor: string | null): number | null {
+  if (!valor) return null;
+  const n = Number(valor.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
 /**
- * Estado de un cobro según PixelPay: `pending` mientras nadie lo pague, `paid`
- * cuando se cobró. Cualquier otro valor se trata como «no pagado».
+ * Consulta un cobro en PixelPay con nuestras credenciales.
+ *
+ * Es la única fuente de verdad sobre si un pago con tarjeta cayó. Los nombres
+ * de los campos del detalle varían según el tipo de cobro (el SDK usa
+ * `transaction_*`, el aviso usa `amount` y `transaction_id`), así que se
+ * aceptan los dos y la respuesta completa se guarda tal cual.
  */
-export async function estadoDelCobro(uuid: string): Promise<string> {
+export async function consultarCobro(uuid: string): Promise<ConsultaCobro> {
   const c = config();
   if (!c) throw new Error("PixelPay no está configurado.");
 
@@ -140,9 +173,19 @@ export async function estadoDelCobro(uuid: string): Promise<string> {
     body: JSON.stringify({ payment_uuid: uuid }),
   });
 
-  const r = cuerpo as { success?: boolean; data?: { status?: string } } | null;
-  if (status !== 200 || !r?.success || !r.data?.status) {
+  const r = cuerpo as { success?: boolean; data?: Record<string, unknown> } | null;
+  if (status !== 200 || !r?.success || !r.data || typeof r.data.status !== "string") {
     throw new Error(mensajeDeError(cuerpo));
   }
-  return r.data.status;
+
+  const datos = r.data;
+  return {
+    estado: datos.status as string,
+    monto: importe(
+      campo(datos, ["transaction_approved_amount", "transaction_amount", "amount", "total"])
+    ),
+    transaccion: campo(datos, ["transaction_id", "transaction_reference"]),
+    autorizacion: campo(datos, ["transaction_auth", "authorization_id", "auth_code"]),
+    crudo: datos,
+  };
 }

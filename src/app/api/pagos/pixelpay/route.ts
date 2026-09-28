@@ -1,4 +1,4 @@
-import { sincronizarCobro } from "@/lib/pasarela";
+import { verificarCobro } from "@/lib/pasarela";
 import { pixelpayConfigurado } from "@/lib/pixelpay";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -44,11 +44,11 @@ export async function POST(request: Request) {
       .eq("pasarela_uuid", uuid)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!pago || pago.estado !== "pendiente") {
+    if (!pago || !["pendiente", "en_verificacion"].includes(pago.estado)) {
       return Response.json({ ok: true, resultado: pago ? "sin_cambios" : "desconocido" });
     }
 
-    const resultado = await sincronizarCobro(uuid);
+    const resultado = await verificarCobro(uuid);
     return Response.json({ ok: true, resultado });
   } catch (e) {
     console.error("PixelPay: no se pudo procesar el aviso", uuid, e);

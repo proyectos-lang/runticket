@@ -1,7 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { crearCobro, estadoDelCobro } from "@/lib/pixelpay";
+import { crearCobro, consultarCobro } from "@/lib/pixelpay";
+import { avisarPagoConfirmado } from "@/lib/correo/mensajes";
 
 /**
  * El pago con tarjeta, de punta a punta, para una inscripción suelta o para un
@@ -62,7 +63,8 @@ export async function iniciarPagoConTarjeta(
   try {
     if (pago.pasarela_uuid && pago.pasarela_url) {
       // Puede que ya lo haya pagado y vuelva a pulsar antes de que llegue el aviso.
-      if ((await sincronizarCobro(pago.pasarela_uuid)) === "pagado") return { tipo: "pagado" };
+      const r = await verificarCobro(pago.pasarela_uuid);
+      if (r === "pagado" || r === "ya_pagado") return { tipo: "pagado" };
       return { tipo: "redirigir", url: pago.pasarela_url };
     }
 
@@ -105,23 +107,49 @@ export async function iniciarPagoConTarjeta(
   }
 }
 
-/**
- * Pregunta a PixelPay por un cobro y, si está pagado, cierra el pago.
- *
- * Es lo único que marca un pago con tarjeta como pagado, y lo usan tanto el
- * aviso de PixelPay como el portal al abrirse. El uuid llegue de donde llegue
- * solo sirve para saber a quién preguntar: la respuesta sale de PixelPay.
- */
-export async function sincronizarCobro(uuid: string): Promise<string> {
-  const estado = await estadoDelCobro(uuid);
-  if (estado !== "paid") return "pendiente";
+export type ResultadoVerificacion =
+  | "pagado"
+  | "ya_pagado"
+  | "a_revision"
+  | "ignorado"
+  | "falso_positivo"
+  | "pendiente"
+  | "desconocido";
 
-  const { data, error } = await createAdminClient().rpc("confirmar_pago_pasarela", {
+/**
+ * Pregunta a PixelPay por un cobro y concilia el pago con lo que responda.
+ *
+ * Es lo único que marca un pago con tarjeta como pagado, y lo usan el aviso de
+ * PixelPay, el portal al abrirse, el botón del panel y la conciliación diaria.
+ * El uuid llegue de donde llegue solo sirve para saber a quién preguntar: la
+ * respuesta sale de PixelPay, y queda guardada como evidencia en el pago
+ * (estado, transacción, autorización, importe y la respuesta completa).
+ */
+export async function verificarCobro(uuid: string): Promise<ResultadoVerificacion> {
+  const consulta = await consultarCobro(uuid);
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.rpc("registrar_verificacion_pasarela", {
     p_pasarela_uuid: uuid,
-    p_referencia: uuid,
+    p_estado: consulta.estado,
+    p_detalle: consulta.crudo,
+    p_monto_cobrado: consulta.monto,
+    p_transaccion: consulta.transaccion,
+    p_autorizacion: consulta.autorizacion,
   });
   if (error) throw new Error(error.message);
-  return data ?? "desconocido";
+  const resultado = (data ?? "desconocido") as ResultadoVerificacion;
+
+  if (resultado === "falso_positivo" || resultado === "a_revision" || resultado === "ignorado") {
+    console.warn("PixelPay: el cobro no cuadra con RunTicket", uuid, resultado, consulta.estado);
+  }
+
+  // Mismo correo que cuando el organizador aprueba a mano: el dorsal y el QR.
+  if (resultado === "pagado") {
+    const { data: pago } = await admin.from("pagos").select("id").eq("pasarela_uuid", uuid).maybeSingle();
+    if (pago) await avisarPagoConfirmado(pago.id);
+  }
+  return resultado;
 }
 
 /**
@@ -140,9 +168,60 @@ export async function comprobarPagoPendiente(pago: {
     return false;
   }
   try {
-    return (await sincronizarCobro(pago.pasarela_uuid)) === "pagado";
+    return (await verificarCobro(pago.pasarela_uuid)) === "pagado";
   } catch (e) {
     console.error("PixelPay: no se pudo comprobar el cobro", pago.pasarela_uuid, e);
     return false;
   }
+}
+
+export type ResumenConciliacionPixelPay = {
+  revisados: number;
+  errores: number;
+  porResultado: Partial<Record<ResultadoVerificacion, number>>;
+};
+
+/**
+ * Vuelve a preguntar a PixelPay por los cobros que importan:
+ *
+ * · los abiertos (pendientes o en revisión), por si se pagaron y no llegó el
+ *   aviso;
+ * · los que RunTicket da por pagados con tarjeta, por si PixelPay no los
+ *   respalda — el falso positivo que no puede pasar desapercibido.
+ *
+ * Uno a uno y sin paralelismo: son pocos, y así no se castiga a PixelPay.
+ */
+export async function conciliarConPixelPay(opciones: {
+  empresaId?: string;
+  /** Solo cobros creados en los últimos N días. */
+  dias?: number;
+  limite?: number;
+} = {}): Promise<ResumenConciliacionPixelPay> {
+  let consulta = createAdminClient()
+    .from("pagos")
+    .select("pasarela_uuid")
+    .not("pasarela_uuid", "is", null)
+    .in("estado", ["pendiente", "en_verificacion", "pagado"])
+    .order("created_at", { ascending: false })
+    .limit(opciones.limite ?? 300);
+  if (opciones.empresaId) consulta = consulta.eq("empresa_id", opciones.empresaId);
+  if (opciones.dias) {
+    consulta = consulta.gte("created_at", new Date(Date.now() - opciones.dias * 86_400_000).toISOString());
+  }
+
+  const { data, error } = await consulta;
+  if (error) throw new Error(error.message);
+
+  const resumen: ResumenConciliacionPixelPay = { revisados: 0, errores: 0, porResultado: {} };
+  for (const { pasarela_uuid } of data ?? []) {
+    try {
+      const r = await verificarCobro(pasarela_uuid!);
+      resumen.porResultado[r] = (resumen.porResultado[r] ?? 0) + 1;
+      resumen.revisados++;
+    } catch (e) {
+      resumen.errores++;
+      console.error("PixelPay: no se pudo conciliar", pasarela_uuid, e);
+    }
+  }
+  return resumen;
 }

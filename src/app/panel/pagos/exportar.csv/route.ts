@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const { data: pagos } = await supabase
     .from("pagos")
     .select(
-      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, referencia_externa, notas, created_at, verificado_en"
+      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, referencia_externa, notas, created_at, verificado_en, pasarela_uuid, pasarela_estado, pasarela_verificado_en, pasarela_transaccion, pasarela_autorizacion, pasarela_monto_cobrado, pasarela_alerta"
     )
     .eq("empresa_id", membresia.empresaId)
     .order("created_at", { ascending: false });
@@ -85,6 +85,14 @@ export async function GET(request: Request) {
     "Estado",
     "Referencia",
     "Notas",
+    // Para cruzar con el reporte de PixelPay o del banco.
+    "Cobro PixelPay",
+    "Estado en PixelPay",
+    "Transacción",
+    "Autorización",
+    "Monto cobrado por PixelPay",
+    "Verificado en PixelPay",
+    "Alerta",
   ];
 
   const datos = filas.map((f) => [
@@ -100,6 +108,13 @@ export async function GET(request: Request) {
     ESTADO_PAGO_LABEL[f.estado],
     f.referencia_externa ?? "",
     f.notas ?? "",
+    f.pasarela_uuid ?? "",
+    f.pasarela_estado ?? "",
+    f.pasarela_transaccion ?? "",
+    f.pasarela_autorizacion ?? "",
+    f.pasarela_monto_cobrado !== null ? Number(f.pasarela_monto_cobrado).toFixed(2) : "",
+    f.pasarela_verificado_en?.slice(0, 16).replace("T", " ") ?? "",
+    f.pasarela_alerta ?? "",
   ]);
 
   const sufijo = eventoFiltro

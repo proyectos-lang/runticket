@@ -9,6 +9,7 @@ import { pixelpayConfigurado } from "@/lib/pixelpay";
 import { puntosDeEntrega } from "@/lib/eventos/consultas";
 import { TarjetaDorsal } from "@/components/portal/TarjetaDorsal";
 import { EtiquetaMono } from "@/components/ui/Datos";
+import { Aviso } from "@/components/ui/Aviso";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { Chip } from "@/components/ui/Chip";
 import { SeccionPago } from "./SeccionPago";
@@ -21,10 +22,10 @@ export default async function InscripcionDetallePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ nueva?: string }>;
+  searchParams: Promise<{ nueva?: string; aviso?: string }>;
 }) {
   const { id } = await params;
-  const { nueva } = await searchParams;
+  const { nueva, aviso } = await searchParams;
   const supabase = await createClient();
 
   const { data: inscripcion } = await supabase.from("inscripciones").select("*").eq("id", id).maybeSingle();
@@ -158,6 +159,12 @@ export default async function InscripcionDetallePage({
             </p>
           </div>
         </div>
+      )}
+
+      {aviso && (
+        <Aviso tono="ambar" titulo="Atención">
+          {aviso}
+        </Aviso>
       )}
 
       <Link

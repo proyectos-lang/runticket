@@ -7,6 +7,7 @@ import { categoriasConCupo } from "@/lib/eventos/consultas";
 import { obtenerDeclaracionVigente } from "@/lib/declaraciones";
 import { perfilCompleto } from "@/lib/validacion/perfil";
 import { edadEnFecha } from "@/lib/format";
+import { pixelpayConfigurado } from "@/lib/pixelpay";
 import {
   aAcompananteInscribible,
   type AcompananteInscribible,
@@ -173,6 +174,7 @@ async function Inscripcion({
           <InscripcionForm
             slug={slug}
             categoriaInicial={categoriaInicial}
+            conTarjeta={pixelpayConfigurado()}
             categorias={categoriasElegibles}
             tallas={tallas ?? []}
             moneda={evento.moneda}

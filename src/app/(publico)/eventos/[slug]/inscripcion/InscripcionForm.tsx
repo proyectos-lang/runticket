@@ -41,6 +41,7 @@ export function InscripcionForm({
   acompanantes: acompanantesGuardados,
   perfil,
   categoriaInicial,
+  conTarjeta = false,
 }: {
   slug: string;
   categorias: CategoriaElegible[];
@@ -52,6 +53,8 @@ export function InscripcionForm({
   perfil: { nombres: string; apellidos: string; correo: string; tallaPredeterminada: string | null };
   /** Preselección que llega del selector de distancia de la ficha del evento. */
   categoriaInicial?: string;
+  /** La pasarela está configurada: el último paso ofrece pagar con tarjeta. */
+  conTarjeta?: boolean;
 }) {
   const boundAction = inscribirse.bind(null, slug);
   const [state, formAction, pending] = useActionState(boundAction, initialState);
@@ -381,9 +384,13 @@ export function InscripcionForm({
           </div>
 
           <p className="font-mono text-xs text-mudo">
-            {personas === 1
-              ? "El pago se coordina con el organizador al confirmar la inscripción."
-              : "Es un solo pago para todo el grupo. Al confirmarlo el organizador, se asignan los dorsales de todos."}
+            {conTarjeta
+              ? personas === 1
+                ? "Con tarjeta, tu plaza se confirma al instante. Por transferencia, coordinas el pago con el organizador."
+                : "Es un solo pago para todo el grupo. Con tarjeta, los dorsales se asignan al instante; por transferencia, cuando el organizador lo confirme."
+              : personas === 1
+                ? "El pago se coordina con el organizador al confirmar la inscripción."
+                : "Es un solo pago para todo el grupo. Al confirmarlo el organizador, se asignan los dorsales de todos."}
           </p>
         </div>
       </section>
@@ -411,6 +418,32 @@ export function InscripcionForm({
           >
             Continuar
           </Boton>
+        ) : conTarjeta && seleccionada && total > 0 ? (
+          /* Dos formas de pagar, las dos inscriben. El botón que se pulsa viaja
+             como `pago` en el formulario; la tarjeta es la primaria porque es la
+             que confirma la plaza sin esperar a nadie. */
+          <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center">
+            <Boton
+              type="submit"
+              name="pago"
+              value="transferencia"
+              variante="secundaria"
+              tamano="lg"
+              disabled={pending || !categoriaId || !acepto}
+            >
+              Pagar por transferencia
+            </Boton>
+            <Boton
+              type="submit"
+              name="pago"
+              value="tarjeta"
+              variante="primaria"
+              tamano="lg"
+              disabled={pending || !categoriaId || !acepto}
+            >
+              {pending ? "Confirmando…" : `Pagar con tarjeta · ${formatPrecioOferta(total, moneda)}`}
+            </Boton>
+          </div>
         ) : (
           <Boton
             type="submit"

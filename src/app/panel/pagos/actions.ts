@@ -7,6 +7,7 @@ import { requireAdminEmpresaActivo } from "@/lib/auth/session";
 import { auditar } from "@/lib/seguridad";
 import { avisarPagoConfirmado, avisarPagoRechazado } from "@/lib/correo/mensajes";
 import type { EstadoPago } from "@/lib/supabase/database.types";
+import { conciliarConPixelPay, verificarCobro } from "@/lib/pasarela";
 
 /**
  * Cambia el estado de un pago. Va contra la RPC actualizar_estado_pago, que
@@ -146,6 +147,51 @@ export async function registrarPagoManual(
 
   revalidatePath("/panel/pagos");
   return { status: "registrado" };
+}
+
+/**
+ * «Verificar en PixelPay» de un pago con tarjeta.
+ *
+ * El pago se lee con el cliente del organizador para que la RLS confirme que es
+ * de su empresa; la consulta y la conciliación van con la llave de servicio,
+ * igual que cuando llega el aviso de PixelPay. Nunca se aprueba a mano un pago
+ * con tarjeta: o PixelPay lo respalda, o no.
+ */
+export async function verificarPagoPixelPay(pagoId: string): Promise<void> {
+  const membresia = await requireAdminEmpresaActivo();
+  const supabase = await createClient();
+  const { data: pago } = await supabase
+    .from("pagos")
+    .select("id, empresa_id, pasarela_uuid")
+    .eq("id", pagoId)
+    .maybeSingle();
+  if (!pago || pago.empresa_id !== membresia.empresaId || !pago.pasarela_uuid) {
+    throw new Error("Ese pago no es un cobro de PixelPay de tu empresa.");
+  }
+
+  const resultado = await verificarCobro(pago.pasarela_uuid);
+  await auditar({
+    accion: "pago.verificado_pixelpay",
+    entidad: "pagos",
+    entidadId: pagoId,
+    empresaId: membresia.empresaId,
+    datosNuevos: { resultado },
+  });
+  revalidatePath("/panel/pagos");
+}
+
+/** Verifica contra PixelPay todos los cobros con tarjeta de la empresa. */
+export async function conciliarPagosPixelPay(): Promise<void> {
+  const membresia = await requireAdminEmpresaActivo();
+  const resumen = await conciliarConPixelPay({ empresaId: membresia.empresaId });
+  await auditar({
+    accion: "pago.conciliado_pixelpay",
+    entidad: "pagos",
+    entidadId: null,
+    empresaId: membresia.empresaId,
+    datosNuevos: resumen,
+  });
+  revalidatePath("/panel/pagos");
 }
 
 // Aquí vivía `verComprobante(ruta)`. Se ha eliminado porque nadie la llamaba:

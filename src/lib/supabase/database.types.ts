@@ -896,6 +896,13 @@ export interface Database {
           pasarela_uuid: string | null;
           pasarela_url: string | null;
           pasarela_monto: number | null;
+          pasarela_estado: string | null;
+          pasarela_verificado_en: string | null;
+          pasarela_transaccion: string | null;
+          pasarela_autorizacion: string | null;
+          pasarela_monto_cobrado: number | null;
+          pasarela_detalle: Record<string, unknown> | null;
+          pasarela_alerta: string | null;
           estado: EstadoPago;
           verificado_por: string | null;
           verificado_en: string | null;
@@ -918,6 +925,13 @@ export interface Database {
           pasarela_uuid?: string | null;
           pasarela_url?: string | null;
           pasarela_monto?: number | null;
+          pasarela_estado?: string | null;
+          pasarela_verificado_en?: string | null;
+          pasarela_transaccion?: string | null;
+          pasarela_autorizacion?: string | null;
+          pasarela_monto_cobrado?: number | null;
+          pasarela_detalle?: Record<string, unknown> | null;
+          pasarela_alerta?: string | null;
           estado?: EstadoPago;
           notas?: string | null;
           created_by?: string | null;
@@ -1218,6 +1232,18 @@ export interface Database {
       /** Abre (o reutiliza) el pago con tarjeta. Pasa una inscripción o un grupo. */
       preparar_pago_pasarela: {
         Args: { p_inscripcion_id?: string | null; p_grupo_id?: string | null };
+        Returns: string;
+      };
+      /** Solo service_role: guarda lo que respondió PixelPay y concilia el pago. */
+      registrar_verificacion_pasarela: {
+        Args: {
+          p_pasarela_uuid: string;
+          p_estado: string;
+          p_detalle?: Record<string, unknown> | null;
+          p_monto_cobrado?: number | null;
+          p_transaccion?: string | null;
+          p_autorizacion?: string | null;
+        };
         Returns: string;
       };
       /** Solo service_role, tras consultar el cobro en PixelPay. */
