@@ -203,7 +203,7 @@ export function ImagenResultado(d: DatosImagenResultado) {
               alignSelf: "flex-start",
             }}
           >
-            ▲ Récord personal
+            Récord personal
           </span>
         )}
         <span style={{ ...DISPLAY, fontSize: historia ? 76 : 60, lineHeight: 0.95, color: C.texto }}>{d.evento}</span>

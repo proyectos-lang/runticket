@@ -245,7 +245,9 @@ export function FilaProxima({
  * que al último clasificado le quede una barra invisible.
  */
 export function percentilDe(puesto: number | null, total: number | null): number | null {
-  if (puesto === null || !total || total <= 0) return null;
+  // Con uno solo publicado no hay con quién compararse: «mejor que el 6 %»
+  // de una carrera de una persona no dice nada.
+  if (puesto === null || !total || total < 2) return null;
   return Math.max(6, Math.round((1 - puesto / total) * 100));
 }
 
@@ -487,7 +489,7 @@ export function TarjetaCarrera({ carrera }: { carrera: CarreraDelCorredor }) {
 
       <div className="relative flex items-end justify-between gap-3 p-4">
         <div className="flex min-w-0 flex-col gap-1">
-          <span className="display truncate text-lg leading-tight text-texto">{carrera.evento}</span>
+          <span className="display line-clamp-2 text-lg leading-tight text-texto">{carrera.evento}</span>
           <span className="tabular truncate font-mono text-[0.65625rem] uppercase tracking-etiqueta text-texto/60">
             {[
               distancia,
