@@ -63,10 +63,12 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
       .select("nombre, distancia_km")
       .eq("id", inscripcion.categoria_id)
       .maybeSingle(),
+    // Solo lo publicado: un tiempo sin publicar es provisional y no se enseña.
     supabase
       .from("resultados")
       .select("tiempo_oficial, posicion_general, posicion_categoria, publicado")
       .eq("inscripcion_id", id)
+      .eq("publicado", true)
       .maybeSingle(),
   ]);
 

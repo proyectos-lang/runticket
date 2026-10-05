@@ -36,10 +36,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       supabase.from("categorias").select("nombre").eq("id", inscripcion.categoria_id).single(),
       supabase.from("perfiles").select("nombres, apellidos").eq("id", inscripcion.corredor_id).single(),
       supabase.from("empresas").select("nombre_comercial").eq("id", inscripcion.empresa_id).single(),
+      // Solo si está publicado: antes el PDF salía con un tiempo provisional que
+      // el organizador todavía podía corregir.
       supabase
         .from("resultados")
         .select("tiempo_oficial, posicion_general, posicion_categoria")
         .eq("inscripcion_id", id)
+        .eq("publicado", true)
         .maybeSingle(),
       supabase.from("patrocinadores").select("nombre").eq("evento_id", inscripcion.evento_id).order("orden"),
     ]);

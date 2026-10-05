@@ -49,7 +49,9 @@ export function SelectorEvento({
           startTransition(async () => {
             // Primero el recuerdo y después la navegación: al revés, la ruta
             // nueva podría renderizarse antes de que la cookie estuviera puesta.
-            await recordarCarreraActiva(elegido || null);
+            // Sin esperar: la pantalla destino lee `?evento=` de la URL; la cookie
+            // es solo memoria para la próxima vez y puede guardarse en paralelo.
+            void recordarCarreraActiva(elegido || null);
             router.push(`${pathname}?${nuevos.toString()}`);
           });
         }}

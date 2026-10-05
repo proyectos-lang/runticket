@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listarInscritos } from "@/lib/eventos/inscritos";
+import { createClient } from "@/lib/supabase/server";
 import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { formatPrecio } from "@/lib/format";
 import { EtiquetaMono } from "@/components/ui/Datos";
@@ -15,8 +15,11 @@ import { MedidorOcupacion } from "@/components/panel/Medidores";
  * datos de todas las carreras» en módulos que, uno a uno, solo tienen sentido
  * sobre una.
  *
- * Los datos salen de `listarInscritos`, la misma función del informe: no hace
- * falta una consulta nueva ni un agregado que pudiera discrepar del padrón.
+ * Antes sacaba los datos de `listarInscritos`, el informe completo: hasta dos
+ * mil inscripciones con sus perfiles, pagos y dos consultas por carrera, para
+ * al final contar cuántas hay y sumar lo cobrado. Ahora pide solo esas tres
+ * columnas en tres consultas en paralelo. Es la vista por defecto de Métricas,
+ * Resultados y Lista de espera, así que era lo primero que se notaba lento.
  */
 export async function ComparativaCarreras({
   segmento,
@@ -29,27 +32,70 @@ export async function ComparativaCarreras({
 }) {
   const membresia = await getEmpresaActivaDelPanel();
   const puedeVerDinero = membresia.rol === "admin_empresa";
+  const supabase = await createClient();
 
-  const { filas, eventos, categorias } = await listarInscritos(null, {}, puedeVerDinero);
+  const [{ data: eventos }, { data: inscripciones }, { data: pagos }] = await Promise.all([
+    supabase
+      .from("eventos")
+      .select("id, nombre, moneda")
+      .eq("empresa_id", membresia.empresaId)
+      .order("fecha_inicio", { ascending: false }),
+    supabase
+      .from("inscripciones")
+      .select("id, evento_id, grupo_inscripcion_id")
+      .eq("empresa_id", membresia.empresaId)
+      .eq("estado", "activa"),
+    // Lo financiero no se le pide a la base para un operador: la RLS lo negaría
+    // igual, pero así tampoco se gasta el viaje.
+    puedeVerDinero
+      ? supabase
+          .from("pagos")
+          .select("inscripcion_id, grupo_inscripcion_id, monto")
+          .eq("empresa_id", membresia.empresaId)
+          .eq("estado", "pagado")
+      : Promise.resolve({ data: [] as { inscripcion_id: string | null; grupo_inscripcion_id: string | null; monto: number }[] }),
+  ]);
 
-  const porCarrera = eventos.map((e) => {
-    const suyas = filas.filter((f) => f.eventoId === e.id);
-    const cupos = categorias.filter((c) => c.eventoId === e.id);
+  // Cupos por carrera, para el medidor de ocupación.
+  const eventoIds = (eventos ?? []).map((e) => e.id);
+  const { data: categorias } = eventoIds.length
+    ? await supabase.from("categorias").select("evento_id, cupo_maximo").in("evento_id", eventoIds)
+    : { data: [] as { evento_id: string; cupo_maximo: number | null }[] };
+
+  // A qué carrera pertenece cada inscripción y cada grupo, para asignar los pagos.
+  const eventoDeInscripcion = new Map<string, string>();
+  const eventoDeGrupo = new Map<string, string>();
+  for (const i of inscripciones ?? []) {
+    eventoDeInscripcion.set(i.id, i.evento_id);
+    if (i.grupo_inscripcion_id) eventoDeGrupo.set(i.grupo_inscripcion_id, i.evento_id);
+  }
+  const recaudadoPorEvento = new Map<string, number>();
+  for (const p of pagos ?? []) {
+    const eventoId =
+      (p.inscripcion_id && eventoDeInscripcion.get(p.inscripcion_id)) ||
+      (p.grupo_inscripcion_id && eventoDeGrupo.get(p.grupo_inscripcion_id));
+    if (!eventoId) continue;
+    recaudadoPorEvento.set(eventoId, (recaudadoPorEvento.get(eventoId) ?? 0) + Number(p.monto));
+  }
+  const inscritosPorEvento = new Map<string, number>();
+  for (const i of inscripciones ?? []) {
+    inscritosPorEvento.set(i.evento_id, (inscritosPorEvento.get(i.evento_id) ?? 0) + 1);
+  }
+
+  const porCarrera = (eventos ?? []).map((e) => {
+    const cupos = (categorias ?? []).filter((c) => c.evento_id === e.id);
     // Una sola categoría de cupo abierto deja al total sin sentido.
-    const cupo = cupos.length && cupos.every((c) => c.cupoMaximo !== null)
-      ? cupos.reduce((a, c) => a + (c.cupoMaximo ?? 0), 0)
-      : null;
-
+    const cupo =
+      cupos.length && cupos.every((c) => c.cupo_maximo !== null)
+        ? cupos.reduce((a, c) => a + (c.cupo_maximo ?? 0), 0)
+        : null;
     return {
-      ...e,
-      inscritos: suyas.length,
+      id: e.id,
+      nombre: e.nombre,
+      moneda: e.moneda,
+      inscritos: inscritosPorEvento.get(e.id) ?? 0,
       cupo,
-      recaudado: puedeVerDinero
-        ? suyas
-            .filter((f) => f.pago?.estado === "pagado")
-            .reduce((a, f) => a + (f.pago?.monto ?? f.precio), 0)
-        : 0,
-      moneda: suyas[0]?.moneda ?? "HNL",
+      recaudado: recaudadoPorEvento.get(e.id) ?? 0,
     };
   });
 

@@ -54,6 +54,7 @@ export default async function CertificadosPage() {
                 </p>
                 <p className="tabular truncate font-mono text-[0.65625rem] uppercase tracking-etiqueta text-texto/45">
                   {formatFechaMono(c.fecha, c.zonaHoraria)}
+                  {c.participante && ` · ${c.participante}`}
                 </p>
               </div>
 

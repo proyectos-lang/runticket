@@ -57,7 +57,10 @@ export type Trayectoria = {
   metricas: {
     carreras: number;
     kmTotales: number;
+    /** La marca de la distancia que más ha corrido (en empate, la más larga). */
     mejor: { tiempo: string; distanciaKm: number | null } | null;
+    /** Su mejor tiempo en cada distancia, de menor a mayor distancia. */
+    mejores: { distanciaKm: number; tiempo: string }[];
   };
   /** Del club declarado en la inscripción más reciente; no está en el perfil. */
   club: string | null;
@@ -78,7 +81,7 @@ const VACIA: Trayectoria = {
   proximas: [],
   finalizadas: [],
   canceladas: [],
-  metricas: { carreras: 0, kmTotales: 0, mejor: null },
+  metricas: { carreras: 0, kmTotales: 0, mejor: null, mejores: [] },
   club: null,
   desdeAnio: null,
 };
@@ -132,9 +135,14 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
         .select("id, nombre, slug, fecha_inicio, zona_horaria, estado")
         .in("id", eventoIds),
       supabase.from("categorias").select("id, nombre, distancia_km").in("id", categoriaIds),
+      // Solo lo publicado. La política de la base deja al dueño leer también
+      // sus tiempos sin publicar, y aquí se enseñaban: el corredor veía una
+      // marca provisional que el organizador aún podía corregir, comparada con
+      // un total que solo cuenta los publicados.
       supabase
         .from("resultados")
         .select("inscripcion_id, tiempo_oficial, posicion_general")
+        .eq("publicado", true)
         .in("inscripcion_id", ids),
       supabase
         .from("pagos")
@@ -244,15 +252,30 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
   // categoría sin distancia no puede inventarse una.
   const kmTotales = propiasFinalizadas.reduce((a, c) => a + (c.distanciaKm ?? 0), 0);
 
-  let mejor: Trayectoria["metricas"]["mejor"] = null;
-  let mejorSegundos = Infinity;
+  // «Mejor marca» era el tiempo más corto a secas, que casi siempre es el de la
+  // distancia más corta: a quien corre 10K y una vez probó un 5K le salía el 5K.
+  // Ahora es su récord en la distancia que más ha corrido; en empate, la más
+  // larga. Y `mejores` guarda el récord de cada distancia para enseñarlos todos.
+  const mejores = [...mejorPorDistancia.entries()]
+    .map(([distanciaKm, v]) => ({
+      distanciaKm,
+      tiempo: carreras.find((c) => c.inscripcionId === v.id)?.tiempo ?? "",
+    }))
+    .filter((m) => m.tiempo)
+    .sort((a, b) => a.distanciaKm - b.distanciaKm);
+
+  const vecesPorDistancia = new Map<number, number>();
   for (const c of propiasFinalizadas) {
-    const s = segundosDeIntervalo(c.tiempo);
-    if (s !== null && s < mejorSegundos) {
-      mejorSegundos = s;
-      mejor = { tiempo: c.tiempo!, distanciaKm: c.distanciaKm };
-    }
+    if (c.distanciaKm === null || segundosDeIntervalo(c.tiempo) === null) continue;
+    vecesPorDistancia.set(c.distanciaKm, (vecesPorDistancia.get(c.distanciaKm) ?? 0) + 1);
   }
+  const distanciaHabitual = [...vecesPorDistancia.entries()].sort(
+    (a, b) => b[1] - a[1] || b[0] - a[0]
+  )[0]?.[0];
+  const marcaHabitual = mejores.find((m) => m.distanciaKm === distanciaHabitual);
+  const mejor: Trayectoria["metricas"]["mejor"] = marcaHabitual
+    ? { tiempo: marcaHabitual.tiempo, distanciaKm: marcaHabitual.distanciaKm }
+    : null;
 
   // El club no está en el perfil: se declara en cada inscripción. Vale el de la
   // más reciente que lo traiga.
@@ -269,7 +292,7 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
     proximas: carreras.filter((c) => c.clase === "proxima").reverse(),
     finalizadas,
     canceladas: carreras.filter((c) => c.clase === "cancelada"),
-    metricas: { carreras: propiasFinalizadas.length, kmTotales, mejor },
+    metricas: { carreras: propiasFinalizadas.length, kmTotales, mejor, mejores },
     club,
     desdeAnio: primera ? new Date(primera.created_at).getFullYear() : null,
   };

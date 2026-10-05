@@ -272,6 +272,12 @@ export function TarjetaResultado({ carrera }: { carrera: CarreraDelCorredor }) {
           {carrera.evento}
           {distanciaSiAporta(carrera.categoria, carrera.distanciaKm) &&
             ` ${distanciaSiAporta(carrera.categoria, carrera.distanciaKm)}`}
+          {/* De un acompañante: se dice de quién es, o parecería una carrera del titular. */}
+          {carrera.participante && (
+            <span className="ml-2 font-mono text-[0.625rem] font-semibold uppercase tracking-etiqueta text-azul-texto">
+              {carrera.participante}
+            </span>
+          )}
         </span>
         <span
           className={`tabular shrink-0 font-mono text-sm font-bold ${
