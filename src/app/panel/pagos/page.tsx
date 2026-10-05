@@ -23,6 +23,7 @@ const ESTADO_PIXELPAY: Record<string, string> = {
   paid: "Pagado",
   open: "Sin pagar",
   pending: "Sin pagar",
+  paid_no_aprobado: "No aprobado",
 };
 
 export default async function PagosPage({

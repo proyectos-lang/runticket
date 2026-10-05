@@ -178,14 +178,23 @@ export async function consultarCobro(uuid: string): Promise<ConsultaCobro> {
     throw new Error(mensajeDeError(cuerpo));
   }
 
-  const datos = r.data;
+  // El detalle del cobro viene anidado: `data.last_response.data` es la
+  // respuesta del procesador al último intento (autorización, importe, código).
+  // Se mira primero ahí y después en el primer nivel.
+  const ultimo = (r.data.last_response as { data?: Record<string, unknown> } | undefined)?.data ?? {};
+  const datos = { ...r.data, ...ultimo };
+
+  // Un `paid` con el último intento explícitamente no aprobado no es un pago.
+  const estado =
+    r.data.status === "paid" && ultimo.response_approved === false ? "paid_no_aprobado" : (r.data.status as string);
+
   return {
-    estado: datos.status as string,
+    estado,
     monto: importe(
       campo(datos, ["transaction_approved_amount", "transaction_amount", "amount", "total"])
     ),
     transaccion: campo(datos, ["transaction_id", "transaction_reference"]),
     autorizacion: campo(datos, ["transaction_auth", "authorization_id", "auth_code"]),
-    crudo: datos,
+    crudo: r.data,
   };
 }
