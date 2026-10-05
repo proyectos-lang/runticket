@@ -5,6 +5,9 @@ import { NavLateral } from "./NavLateral";
 import type { SeccionNav } from "./navegacion";
 import type { RolEmpresa } from "@/lib/supabase/database.types";
 
+/** Otra área a la que esta persona también puede entrar: portal, panel o consola. */
+export type OtraArea = { href: string; etiqueta: string };
+
 /**
  * Maquetación común de las tres áreas autenticadas. Es deliberadamente tonta:
  * recibe la navegación ya construida (JSON serializable) para que cada layout
@@ -18,6 +21,7 @@ export function AppShell({
   rolEmpresa,
   encabezado,
   pieNav,
+  otrasAreas = [],
   children,
 }: {
   secciones: SeccionNav[];
@@ -31,6 +35,12 @@ export function AppShell({
   encabezado?: React.ReactNode;
   /** Bloque fijo al pie de la navegación lateral. */
   pieNav?: React.ReactNode;
+  /**
+   * Las otras áreas de esta persona. Un organizador que además corre tiene
+   * portal y panel, y antes **ninguno enlazaba al otro**: la única forma de
+   * pasar de uno a otro era escribir la dirección a mano.
+   */
+  otrasAreas?: OtraArea[];
   children: React.ReactNode;
 }) {
   // Cuando el título es la marca se pinta el wordmark del sistema, no el texto
@@ -54,6 +64,22 @@ export function AppShell({
       </Link>
     ));
 
+  const enlacesAreas = otrasAreas.map((a) => (
+    <Link
+      key={a.href}
+      href={a.href}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-linea px-3 py-1.5 text-sm text-atenuado transition-colors hover:border-linea-fuerte hover:text-texto"
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M17 1l4 4-4 4" />
+        <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+        <path d="M7 23l-4-4 4-4" />
+        <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+      </svg>
+      {a.etiqueta}
+    </Link>
+  ));
+
   return (
     <div className="flex min-h-full flex-1 flex-col lg:flex-row">
       <NavLateral secciones={secciones} rolEmpresa={rolEmpresa} pie={pieNav}>
@@ -61,8 +87,9 @@ export function AppShell({
       </NavLateral>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="hidden items-center justify-end gap-4 border-b border-linea px-8 py-3 lg:flex">
-          {correo && <span className="text-sm text-mudo">{correo}</span>}
+        <header className="hidden items-center justify-end gap-3 border-b border-linea px-8 py-3 lg:flex">
+          {enlacesAreas}
+          {correo && <span className="ml-1 text-sm text-mudo">{correo}</span>}
           <form action={cerrarSesion}>
             <button
               type="submit"
@@ -77,9 +104,10 @@ export function AppShell({
           <div className="mx-auto w-full max-w-5xl">{children}</div>
         </main>
 
-        {/* En móvil la cabecera no cabe: el cierre de sesión va al pie */}
-        <footer className="border-t border-linea px-6 py-4 lg:hidden">
-          <form action={cerrarSesion}>
+        {/* En móvil la cabecera no cabe: las otras áreas y el cierre de sesión van al pie */}
+        <footer className="flex flex-wrap items-center gap-3 border-t border-linea px-6 py-4 lg:hidden">
+          {enlacesAreas}
+          <form action={cerrarSesion} className="ml-auto">
             <button type="submit" className="text-sm text-atenuado">
               Cerrar sesión
             </button>

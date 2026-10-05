@@ -3,8 +3,14 @@ import { createClient } from "@/lib/supabase/server";
 import { formatFechaHora } from "@/lib/format";
 import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
 import { marcarLeida, marcarTodasLeidas } from "./actions";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 
-export default async function NotificacionesPage() {
+export default async function NotificacionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>;
+}) {
+  const { aviso } = await searchParams;
   const supabase = await createClient();
 
   // La RLS ya limita las filas al usuario en sesión; el filtro por tipo deja
@@ -21,6 +27,7 @@ export default async function NotificacionesPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <AvisoDeRuta aviso={aviso} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-texto">Notificaciones</h1>

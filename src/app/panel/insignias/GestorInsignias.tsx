@@ -12,9 +12,9 @@ import {
   alternarInsignia,
   eliminarInsignia,
   repartirInsignias,
-  TIPOS_CRITERIO,
   type InsigniaState,
 } from "./actions";
+import { TIPOS_CRITERIO } from "@/lib/insignias";
 import type { CriterioInsignia, TipoCriterioInsignia } from "@/lib/supabase/database.types";
 
 const initialState: InsigniaState = { status: "idle" };

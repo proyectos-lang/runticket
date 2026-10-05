@@ -1,27 +1,37 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { redirigirConAviso } from "@/lib/avisos";
 import type { RolEmpresa } from "@/lib/supabase/database.types";
 
-export async function getUsuarioActual() {
+/**
+ * Quién hace la petición y qué puede hacer.
+ *
+ * Todo lo de aquí va envuelto en `cache()` de React, que recuerda el resultado
+ * **durante una petición**. Antes no lo estaba, y en una sola pantalla del panel
+ * la sesión se pedía a Supabase hasta cuatro veces (layout, página, informe y
+ * consulta) y las membresías otras tantas: diez viajes en serie antes de pintar
+ * nada. Ahora cada dato se pide una vez y el resto lo reutiliza.
+ */
+
+export const getUsuarioActual = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});
 
-export async function getPerfilActual() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getPerfilActual = cache(async () => {
+  const user = await getUsuarioActual();
   if (!user) return null;
 
+  const supabase = await createClient();
   const { data } = await supabase.from("perfiles").select("*").eq("id", user.id).maybeSingle();
   return data;
-}
+});
 
 export async function esSuperAdmin() {
   const perfil = await getPerfilActual();
@@ -36,13 +46,11 @@ export type MembresiaEmpresa = {
 };
 
 /** Empresas donde el usuario actual tiene membresía activa (admin_empresa u operador). */
-export async function getMembresiasActivas(): Promise<MembresiaEmpresa[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getMembresiasActivas = cache(async (): Promise<MembresiaEmpresa[]> => {
+  const user = await getUsuarioActual();
   if (!user) return [];
 
+  const supabase = await createClient();
   const { data: membresias } = await supabase
     .from("empresa_miembros")
     .select("empresa_id, rol")
@@ -78,7 +86,7 @@ export async function getMembresiasActivas(): Promise<MembresiaEmpresa[]> {
         Number(b.rol === "admin_empresa") - Number(a.rol === "admin_empresa") ||
         a.nombreComercial.localeCompare(b.nombreComercial, "es")
     );
-}
+});
 
 export async function getMembresiaDeEmpresa(empresaId: string): Promise<MembresiaEmpresa | null> {
   const membresias = await getMembresiasActivas();
@@ -110,7 +118,7 @@ export const EVENTO_TODAS = "todas";
  * `seleccionarEmpresaActiva`, y **siempre se valida contra las membresías reales**:
  * una cookie manipulada o una membresía revocada no deben dar acceso.
  */
-export async function getEmpresaActivaDelPanel(): Promise<MembresiaEmpresa> {
+export const getEmpresaActivaDelPanel = cache(async (): Promise<MembresiaEmpresa> => {
   const membresias = await getMembresiasActivas();
   if (membresias.length === 0) {
     redirect("/panel");
@@ -118,7 +126,7 @@ export async function getEmpresaActivaDelPanel(): Promise<MembresiaEmpresa> {
 
   const elegida = (await cookies()).get(COOKIE_EMPRESA)?.value;
   return membresias.find((m) => m.empresaId === elegida) ?? membresias[0];
-}
+});
 
 /**
  * True cuando el usuario tiene varias empresas y todavía no ha elegido una
@@ -133,11 +141,21 @@ export async function necesitaElegirEmpresa(): Promise<boolean> {
   return !membresias.some((m) => m.empresaId === elegida);
 }
 
+/**
+ * Las guardas de abajo **redirigen con un aviso** en vez de lanzar un error.
+ *
+ * Lanzaban. Y como casi todas las acciones del panel se invocan desde un
+ * `<form action>` sin nada que las capture, perder la sesión o cambiar de
+ * empresa en otra pestaña terminaba en la pantalla de «No pudimos cargar esta
+ * pantalla», que suena a avería cuando solo es un permiso que ya no se tiene.
+ */
+const SOLO_ADMIN = "Solo un administrador de la empresa puede hacer eso.";
+
 /** Usar al inicio de Server Actions que crean/editan eventos, categorías, tallas, etc. */
 export async function requireAdminEmpresaActivo(): Promise<MembresiaEmpresa> {
   const membresia = await getEmpresaActivaDelPanel();
   if (membresia.rol !== "admin_empresa") {
-    throw new Error("Solo un administrador de la empresa puede realizar esta acción.");
+    redirigirConAviso("/panel", SOLO_ADMIN);
   }
   return membresia;
 }
@@ -150,7 +168,7 @@ export async function requireAdminEmpresaActivo(): Promise<MembresiaEmpresa> {
 export async function requireAdminDeEmpresa(empresaId: string): Promise<MembresiaEmpresa> {
   const membresia = await getMembresiaDeEmpresa(empresaId);
   if (!membresia || membresia.rol !== "admin_empresa") {
-    throw new Error("No tienes permisos de administrador sobre esta empresa.");
+    redirigirConAviso("/panel", "No tienes permisos de administrador sobre esa empresa.");
   }
   return membresia;
 }
@@ -166,7 +184,7 @@ export async function requireAdminDeEvento(eventoId: string): Promise<{
     .select("empresa_id")
     .eq("id", eventoId)
     .maybeSingle();
-  if (!evento) throw new Error("El evento no existe.");
+  if (!evento) redirigirConAviso("/panel/eventos", "Esa carrera ya no existe.");
 
   return { membresia: await requireAdminDeEmpresa(evento.empresa_id), empresaId: evento.empresa_id };
 }
@@ -182,10 +200,10 @@ export async function requireMiembroDeEvento(eventoId: string): Promise<{
     .select("empresa_id")
     .eq("id", eventoId)
     .maybeSingle();
-  if (!evento) throw new Error("El evento no existe.");
+  if (!evento) redirigirConAviso("/panel/eventos", "Esa carrera ya no existe.");
 
   const membresia = await getMembresiaDeEmpresa(evento.empresa_id);
-  if (!membresia) throw new Error("No tienes acceso a este evento.");
+  if (!membresia) redirigirConAviso("/panel/eventos", "No tienes acceso a esa carrera.");
   return { membresia, empresaId: evento.empresa_id };
 }
 
@@ -195,13 +213,11 @@ export type InvitacionPendiente = {
 };
 
 /** Invitaciones (empresa_miembros en estado 'invitado') aún no aceptadas por el usuario actual. */
-export async function getInvitacionesPendientes(): Promise<InvitacionPendiente[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export const getInvitacionesPendientes = cache(async (): Promise<InvitacionPendiente[]> => {
+  const user = await getUsuarioActual();
   if (!user) return [];
 
+  const supabase = await createClient();
   const { data: invitaciones } = await supabase
     .from("empresa_miembros")
     .select("empresa_id")
@@ -221,4 +237,4 @@ export async function getInvitacionesPendientes(): Promise<InvitacionPendiente[]
     empresaId: i.empresa_id,
     nombreComercial: empresas?.find((e) => e.id === i.empresa_id)?.nombre_comercial ?? "",
   }));
-}
+});

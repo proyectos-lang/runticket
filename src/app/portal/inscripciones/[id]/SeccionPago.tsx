@@ -181,7 +181,7 @@ export function SeccionPago({
                   rel="noopener noreferrer"
                   onClick={() => {
                     // Deja constancia del intento sin bloquear la apertura de WhatsApp.
-                    void registrarWhatsApp();
+                    Promise.resolve(registrarWhatsApp()).catch(() => {});
                   }}
                   className={claseBoton(pagarConTarjeta ? "secundaria" : "primaria", "md", "mt-1 self-start")}
                 >

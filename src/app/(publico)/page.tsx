@@ -6,6 +6,7 @@ import { TarjetaCarrera } from "@/components/publico/TarjetaCarrera";
 import { HeroEvento } from "@/components/publico/HeroEvento";
 import { ContadorCupos } from "@/components/publico/ContadorCupos";
 import { PildoraEnlace } from "@/components/ui/Pildora";
+import { BotonEnlace } from "@/components/ui/Boton";
 
 /**
  * La portada es la página que más importa para SEO, así que se prerenderiza
@@ -85,6 +86,26 @@ export default async function HomePage() {
             Ver todas →
           </Link>
         )}
+      </section>
+      {/* La portada hablaba solo a corredores. Quien organiza carreras no tenía
+          ninguna puerta y acababa entrando por «Entrar» como si fuera uno más. */}
+      <section className="border-t border-linea">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-6 py-14 lg:flex-row lg:items-center lg:justify-between lg:px-10">
+          <div className="flex max-w-xl flex-col gap-2">
+            <span className="font-mono text-[0.625rem] font-bold uppercase tracking-etiqueta text-mudo">
+              Para organizadores
+            </span>
+            <h2 className="display text-2xl text-texto">¿Organizas carreras?</h2>
+            <p className="text-sm leading-relaxed text-atenuado">
+              Inscripciones en línea, pago con tarjeta o transferencia, dorsales con QR, entrega
+              de kits y resultados, todo desde un solo panel. Si tu empresa ya está en RunTicket,
+              entra con tu cuenta; si no, el equipo de RunTicket la da de alta.
+            </p>
+          </div>
+          <BotonEnlace href="/login?como=organizador" variante="secundaria" tamano="lg" className="shrink-0">
+            Entrar al panel de organizadores
+          </BotonEnlace>
+        </div>
       </section>
     </main>
   );

@@ -15,6 +15,9 @@ export function Footer() {
           <Link href="/login" className="transition-colors hover:text-texto">
             Entrar
           </Link>
+          <Link href="/login?como=organizador" className="transition-colors hover:text-texto">
+            Organizadores
+          </Link>
         </nav>
       </div>
     </footer>

@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getUsuarioActual } from "@/lib/auth/session";
+import { otrasAreasDe } from "@/lib/auth/areas";
 import { createClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/shell/AppShell";
 import { navPortal } from "@/components/shell/navegacion";
@@ -22,7 +23,7 @@ async function PortalAutenticado({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   // Dos contadores que el menú necesita en todas las pantallas del portal. Se
   // piden con `head` y `count`: no hace falta traer las filas, solo cuántas hay.
-  const [{ count: inscripciones }, { count: sinLeer }] = await Promise.all([
+  const [{ count: inscripciones }, { count: sinLeer }, otrasAreas] = await Promise.all([
     supabase
       .from("inscripciones")
       .select("id", { count: "exact", head: true })
@@ -36,6 +37,7 @@ async function PortalAutenticado({ children }: { children: React.ReactNode }) {
       .select("id", { count: "exact", head: true })
       .eq("leido", false)
       .not("tipo", "in", TIPOS_DE_PANEL_SQL),
+    otrasAreasDe("/portal"),
   ]);
 
   return (
@@ -47,6 +49,7 @@ async function PortalAutenticado({ children }: { children: React.ReactNode }) {
       titulo="RunTicket"
       subtitulo="Portal del corredor"
       correo={usuario.email ?? undefined}
+      otrasAreas={otrasAreas}
     >
       {children}
     </AppShell>

@@ -37,19 +37,27 @@ export function BotonNotificar({
 
 export function BotonQuitar({ eventoId, listaEsperaId }: { eventoId: string; listaEsperaId: string }) {
   const [pendiente, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   return (
-    <button
-      type="button"
-      disabled={pendiente}
-      onClick={() => {
-        if (confirm("¿Quitar a esta persona de la lista de espera?")) {
-          startTransition(() => quitarDeListaEspera(eventoId, listaEsperaId));
-        }
-      }}
-      className="text-sm underline-offset-2 hover:underline disabled:opacity-50 text-red-400"
-    >
-      Quitar
-    </button>
+    <span className="flex flex-col items-end gap-1">
+      <button
+        type="button"
+        disabled={pendiente}
+        onClick={() => {
+          if (confirm("¿Quitar a esta persona de la lista de espera?")) {
+            setError(null);
+            startTransition(async () => {
+              const r = await quitarDeListaEspera(eventoId, listaEsperaId);
+              if (r?.error) setError(r.error);
+            });
+          }
+        }}
+        className="text-sm underline-offset-2 hover:underline disabled:opacity-50 text-red-400"
+      >
+        Quitar
+      </button>
+      {error && <p className="max-w-xs text-right text-xs text-red-400">{error}</p>}
+    </span>
   );
 }

@@ -26,7 +26,12 @@ export async function marcarPagoPorWhatsApp(inscripcionId: string): Promise<void
     p_inscripcion_id: inscripcionId,
     p_metodo: "whatsapp",
   });
-  if (error) throw new Error("No se pudo registrar el pago: " + error.message);
+  // Es solo constancia del intento: si falla, el corredor igual abre WhatsApp y
+  // el organizador igual recibe su mensaje. No merece romper la pantalla.
+  if (error) {
+    console.error("No se pudo registrar el intento de pago por WhatsApp", error.message);
+    return;
+  }
   revalidatePath(`/portal/inscripciones/${inscripcionId}`);
 }
 

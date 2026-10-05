@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { guardarGpx, quitarGpx, type GpxState } from "../actions";
 
 const initialState: GpxState = { status: "idle" };
@@ -8,6 +8,7 @@ const initialState: GpxState = { status: "idle" };
 export function GpxForm({ eventoId, rutaActual }: { eventoId: string; rutaActual: string | null }) {
   const [state, formAction, pending] = useActionState(guardarGpx.bind(null, eventoId), initialState);
   const [quitando, startTransition] = useTransition();
+  const [errorQuitar, setErrorQuitar] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-3">
@@ -29,13 +30,18 @@ export function GpxForm({ eventoId, rutaActual }: { eventoId: string; rutaActual
             disabled={quitando}
             onClick={() => {
               if (confirm("¿Quitar el trazado de la ruta?")) {
-                startTransition(() => quitarGpx(eventoId));
+                setErrorQuitar(null);
+                startTransition(async () => {
+                  const r = await quitarGpx(eventoId);
+                  if (r?.error) setErrorQuitar(r.error);
+                });
               }
             }}
             className="underline underline-offset-2 disabled:opacity-50 text-red-400"
           >
             Quitar
           </button>
+          {errorQuitar && <p className="text-xs text-rojo">{errorQuitar}</p>}
         </div>
       ) : (
         <p className="text-sm text-atenuado">

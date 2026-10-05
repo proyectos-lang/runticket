@@ -1,5 +1,6 @@
 "use server";
 
+import { mensajeDe, redirigirConAviso } from "@/lib/avisos";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminDeEvento } from "@/lib/auth/session";
@@ -131,7 +132,9 @@ export async function publicarResultados(eventoId: string, publicar: boolean) {
     .from("resultados")
     .update({ publicado: publicar })
     .in("inscripcion_id", ids);
-  if (error) throw new Error("No se pudieron publicar los resultados: " + error.message);
+  if (error) {
+    redirigirConAviso(`/panel/eventos/${eventoId}/resultados`, "No se pudieron publicar los resultados: " + mensajeDe(error));
+  }
 
   revalidatePath(`/panel/eventos/${eventoId}/resultados`);
 }
@@ -140,6 +143,8 @@ export async function recalcularPosiciones(eventoId: string) {
   await requireAdminDeEvento(eventoId);
   const supabase = await createClient();
   const { error } = await supabase.rpc("recalcular_posiciones", { p_evento_id: eventoId });
-  if (error) throw new Error("No se pudieron recalcular las posiciones: " + error.message);
+  if (error) {
+    redirigirConAviso(`/panel/eventos/${eventoId}/resultados`, "No se pudieron recalcular las posiciones: " + mensajeDe(error));
+  }
   revalidatePath(`/panel/eventos/${eventoId}/resultados`);
 }

@@ -2,8 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { FilaCarreraPanel } from "@/components/panel/FilaCarreraPanel";
 import { CrearEventoForm } from "./CrearEventoForm";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 
-export default async function PanelEventosPage() {
+export default async function PanelEventosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>;
+}) {
+  const { aviso } = await searchParams;
   const membresia = await getEmpresaActivaDelPanel();
   const supabase = await createClient();
 
@@ -22,6 +28,7 @@ export default async function PanelEventosPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
       <div className="flex flex-col gap-1">
         <h1 className="display text-2xl text-texto">Carreras</h1>
         <p className="max-w-150 text-sm leading-relaxed text-atenuado">

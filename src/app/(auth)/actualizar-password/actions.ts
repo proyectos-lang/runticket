@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { ambitoDelUsuario } from "@/lib/auth/destino";
 import { actualizarPasswordSchema } from "@/lib/validacion/auth";
 
 export type ActualizarPasswordState = {
@@ -30,5 +31,8 @@ export async function actualizarPassword(
     return { status: "error", message: "No se pudo actualizar la contraseña: " + error.message };
   }
 
-  redirect("/login");
+  // `verifyOtp` ya dejó la sesión iniciada al abrir el enlace del correo:
+  // mandar al login a quien ya está dentro era pedirle la contraseña nueva
+  // nada más crearla.
+  redirect((await ambitoDelUsuario()).href);
 }

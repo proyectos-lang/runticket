@@ -1,5 +1,6 @@
 "use server";
 
+import { mensajeDe, redirigirConAviso } from "@/lib/avisos";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
@@ -11,7 +12,7 @@ export async function marcarLeida(notificacionId: string) {
     .from("notificaciones")
     .update({ leido: true, leido_en: new Date().toISOString() })
     .eq("id", notificacionId);
-  if (error) throw new Error("No se pudo marcar como leída: " + error.message);
+  if (error) redirigirConAviso("/panel/notificaciones", "No se pudo marcar como leída: " + mensajeDe(error));
 
   revalidatePath("/panel/notificaciones");
 }

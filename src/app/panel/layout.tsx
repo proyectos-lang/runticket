@@ -8,13 +8,15 @@ import {
   getEmpresaActivaDelPanel,
   necesitaElegirEmpresa,
 } from "@/lib/auth/session";
+import { otrasAreasDe } from "@/lib/auth/areas";
 import { ElegirEmpresa } from "./ElegirEmpresa";
 import { aceptarInvitacionEmpresa, cerrarSesion } from "@/lib/auth/actions";
 import { AppShell } from "@/components/shell/AppShell";
 import { SelectorEmpresa } from "@/components/shell/SelectorEmpresa";
 import { navPanel } from "@/components/shell/navegacion";
 import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
-import { Boton } from "@/components/ui/Boton";
+import { Boton, BotonEnlace } from "@/components/ui/Boton";
+import { MarcaVertical } from "@/components/publico/MarcaVertical";
 
 /**
  * El panel es dinámico de principio a fin y no hay nada que prerenderizar: cada
@@ -22,10 +24,10 @@ import { Boton } from "@/components/ui/Boton";
  *
  * El `<Suspense>` es lo que lo declara. Cubre el shell **y las páginas de
  * debajo**, que se renderizan dentro de él, así que ninguna necesita marcarse
- * una por una —así se pudieron quitar los `force-dynamic` de las cincuenta y
- * pico pantallas—. El `fallback` va vacío a propósito: aquí no hay armazón que
- * enseñar antes de saber quién eres, y un esqueleto parpadeando en cada
- * navegación del panel molesta más de lo que informa.
+ * una por una. El `fallback` va vacío a propósito: aquí no hay armazón que
+ * enseñar antes de saber quién eres. Lo que sí hay, desde `loading.tsx`, es un
+ * esqueleto para las navegaciones **entre** pantallas del panel, que es donde
+ * la espera se notaba.
  */
 export default function PanelLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -41,20 +43,25 @@ async function PanelAutenticado({ children }: { children: React.ReactNode }) {
 
   const membresias = await getMembresiasActivas();
 
-  // Sin membresías no hay panel que enmarcar: se muestran las invitaciones
-  // pendientes fuera del shell.
+  // Sin membresías no hay panel que enmarcar. Aquí llega un corredor que pulsó
+  // «Organizadores» por curiosidad, o alguien invitado que viene a aceptar. En
+  // los dos casos tiene que poder salir: antes esta pantalla solo ofrecía
+  // «Cerrar sesión».
   if (membresias.length === 0) {
     const invitaciones = await getInvitacionesPendientes();
     return (
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-16">
-        <h1 className="text-center text-xl font-semibold text-texto">
-          Panel de empresa
-        </h1>
-        {invitaciones.length > 0 ? (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-8 px-6 py-16">
+        <MarcaVertical />
+        <div className="flex flex-col gap-2 text-center">
+          <h1 className="display text-2xl text-texto">Panel de organizadores</h1>
+          <p className="text-sm leading-relaxed text-atenuado">
+            {invitaciones.length > 0
+              ? "Te invitaron a gestionar carreras. Acepta la invitación para entrar al panel de la empresa."
+              : "Tu cuenta no administra ninguna empresa todavía. Si organizas carreras, el equipo de RunTicket da de alta tu empresa y te invita desde aquí."}
+          </p>
+        </div>
+        {invitaciones.length > 0 && (
           <div className="flex flex-col gap-3">
-            <p className="text-center text-sm text-atenuado">
-              Tienes invitaciones pendientes:
-            </p>
             {invitaciones.map((inv) => (
               <form
                 key={inv.empresaId}
@@ -68,11 +75,19 @@ async function PanelAutenticado({ children }: { children: React.ReactNode }) {
               </form>
             ))}
           </div>
-        ) : (
-          <p className="text-center text-sm text-atenuado">
-            Todavía no tienes acceso a ningún panel de empresa.
-          </p>
         )}
+        <div className="flex flex-col gap-2.5">
+          <BotonEnlace
+            href="/portal"
+            variante={invitaciones.length > 0 ? "secundaria" : "primaria"}
+            ancho
+          >
+            Ir a mi cuenta de corredor
+          </BotonEnlace>
+          <BotonEnlace href="/eventos" variante="fantasma" ancho>
+            Ver carreras
+          </BotonEnlace>
+        </div>
         <form action={cerrarSesion} className="self-center">
           <button type="submit" className="text-sm text-mudo hover:text-texto">
             Cerrar sesión
@@ -94,37 +109,38 @@ async function PanelAutenticado({ children }: { children: React.ReactNode }) {
   // se le cuenta nada financiero, ni siquiera para pintar una cifra.
   const supabase = await createClient();
   const esAdmin = activa.rol === "admin_empresa";
-  const [{ count: carreras }, { count: enEspera }, { count: porVerificar }, { count: avisos }] =
+  const [{ count: carreras }, { count: enEspera }, { count: porVerificar }, { count: avisos }, otrasAreas] =
     await Promise.all([
-    supabase
-      .from("eventos")
-      .select("id", { count: "exact", head: true })
-      .eq("empresa_id", activa.empresaId),
-    // `lista_espera` no guarda la empresa: se filtra por el evento, que sí la
-    // tiene, con el join embebido de PostgREST.
-    esAdmin
-      ? supabase
-          .from("lista_espera")
-          .select("id, eventos!inner(empresa_id)", { count: "exact", head: true })
-          .eq("eventos.empresa_id", activa.empresaId)
-          .in("estado", ["esperando", "notificado"])
-      : Promise.resolve({ count: 0 }),
-    esAdmin
-      ? supabase
-          .from("pagos")
-          .select("id", { count: "exact", head: true })
-          .eq("empresa_id", activa.empresaId)
-          .eq("estado", "en_verificacion")
-      : Promise.resolve({ count: 0 }),
-    // Sin filtro de empresa: la RLS ya limita las filas a este usuario, y el
-    // tipo es lo que separa lo que le llega como organizador de lo que le llega
-    // como corredor.
-    supabase
-      .from("notificaciones")
-      .select("id", { count: "exact", head: true })
-      .eq("leido", false)
-      .in("tipo", [...TIPOS_DE_PANEL]),
-  ]);
+      supabase
+        .from("eventos")
+        .select("id", { count: "exact", head: true })
+        .eq("empresa_id", activa.empresaId),
+      // `lista_espera` no guarda la empresa: se filtra por el evento, que sí la
+      // tiene, con el join embebido de PostgREST.
+      esAdmin
+        ? supabase
+            .from("lista_espera")
+            .select("id, eventos!inner(empresa_id)", { count: "exact", head: true })
+            .eq("eventos.empresa_id", activa.empresaId)
+            .in("estado", ["esperando", "notificado"])
+        : Promise.resolve({ count: 0 }),
+      esAdmin
+        ? supabase
+            .from("pagos")
+            .select("id", { count: "exact", head: true })
+            .eq("empresa_id", activa.empresaId)
+            .eq("estado", "en_verificacion")
+        : Promise.resolve({ count: 0 }),
+      // Sin filtro de empresa: la RLS ya limita las filas a este usuario, y el
+      // tipo es lo que separa lo que le llega como organizador de lo que le llega
+      // como corredor.
+      supabase
+        .from("notificaciones")
+        .select("id", { count: "exact", head: true })
+        .eq("leido", false)
+        .in("tipo", [...TIPOS_DE_PANEL]),
+      otrasAreasDe("/panel"),
+    ]);
 
   return (
     <AppShell
@@ -138,6 +154,7 @@ async function PanelAutenticado({ children }: { children: React.ReactNode }) {
       rolEmpresa={activa.rol}
       correo={usuario.email ?? undefined}
       encabezado={<SelectorEmpresa membresias={membresias} activa={activa} />}
+      otrasAreas={otrasAreas}
     >
       {children}
     </AppShell>

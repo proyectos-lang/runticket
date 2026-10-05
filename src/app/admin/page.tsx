@@ -4,8 +4,14 @@ import { formatPrecio, formatFechaCorta } from "@/lib/format";
 import { TarjetaMetricaPanel } from "@/components/panel/Medidores";
 import { AreaTemporal, BarrasHorizontales } from "@/components/metricas/Graficos";
 import type { MetricasPlataforma } from "@/lib/supabase/database.types";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 
-export default async function AdminInicioPage() {
+export default async function AdminInicioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>;
+}) {
+  const { aviso } = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase.rpc("metricas_plataforma");
   const m = (data ?? {}) as Partial<MetricasPlataforma>;
@@ -21,6 +27,7 @@ export default async function AdminInicioPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold text-texto">Panel de plataforma</h1>
         <p className="text-sm text-atenuado">

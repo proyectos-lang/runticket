@@ -568,7 +568,7 @@ export async function guardarGpx(
   return { status: "guardado" };
 }
 
-export async function quitarGpx(eventoId: string) {
+export async function quitarGpx(eventoId: string): Promise<{ error?: string }> {
   await requireAdminDeEvento(eventoId);
   const supabase = await createClient();
 
@@ -578,13 +578,15 @@ export async function quitarGpx(eventoId: string) {
     .eq("id", eventoId)
     .maybeSingle();
 
-  await supabase.from("eventos").update({ ruta_gpx_url: null }).eq("id", eventoId);
+  const { error } = await supabase.from("eventos").update({ ruta_gpx_url: null }).eq("id", eventoId);
+  if (error) return { error: "No se pudo quitar el trazado: " + error.message };
 
   const ruta = evento?.ruta_gpx_url && rutaDesdeUrlPublica(evento.ruta_gpx_url, "eventos");
   if (ruta) await supabase.storage.from("eventos").remove([ruta]);
 
   revalidarEvento(eventoId, [evento?.slug]);
   revalidatePath(`/panel/eventos/${eventoId}/ubicacion`);
+  return {};
 }
 
 // ---------------------------------------------------------------------------
@@ -612,14 +614,18 @@ export async function notificarSiguienteEnEspera(eventoId: string, categoriaId: 
   if (!data) throw new Error("No hay nadie esperando en esta categoría.");
 }
 
-export async function quitarDeListaEspera(eventoId: string, listaEsperaId: string) {
+export async function quitarDeListaEspera(
+  eventoId: string,
+  listaEsperaId: string
+): Promise<{ error?: string }> {
   await requireAdminDeEvento(eventoId);
 
   const supabase = await createClient();
   const { error } = await supabase.from("lista_espera").delete().eq("id", listaEsperaId);
-  if (error) throw new Error("No se pudo quitar de la lista: " + error.message);
+  if (error) return { error: "No se pudo quitar de la lista: " + error.message };
 
   revalidatePath(`/panel/eventos/${eventoId}/lista-espera`);
+  return {};
 }
 
 export type BorradoState = { status: "idle" | "error"; message?: string };

@@ -1,11 +1,14 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getPerfilActual } from "@/lib/auth/session";
+import { ambitoDelUsuario } from "@/lib/auth/destino";
+import { otrasAreasDe } from "@/lib/auth/areas";
 import { AppShell } from "@/components/shell/AppShell";
 import { navAdmin } from "@/components/shell/navegacion";
 import { createClient } from "@/lib/supabase/server";
 import { PlacaAmbito } from "@/components/admin/Chips";
 import { Marca } from "@/components/publico/Marca";
+import { PantallaEstado } from "@/components/ui/PantallaEstado";
 
 /** Dinámico de principio a fin; ver la nota del layout del panel. */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -19,12 +22,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 async function ConsolaAutenticada({ children }: { children: React.ReactNode }) {
   const perfil = await getPerfilActual();
   if (!perfil) redirect("/login?next=/admin");
-  if (perfil.rol_plataforma !== "super_admin") redirect("/");
+
+  // Antes se le mandaba a la portada sin decir nada, y parecía que el enlace
+  // estaba roto. Se le explica y se le lleva a su sitio.
+  if (perfil.rol_plataforma !== "super_admin") {
+    const ambito = await ambitoDelUsuario();
+    return (
+      <PantallaEstado
+        codigo="Consola de plataforma"
+        titulo="Esta zona es solo para la administración de RunTicket"
+        descripcion="Tu cuenta no tiene ese permiso, y no lo necesita: lo tuyo está en tu propia área."
+        accion={{ href: ambito.href, texto: `Ir a ${ambito.etiqueta.toLowerCase()}` }}
+      />
+    );
+  }
 
   const supabase = await createClient();
-  const [{ count: empresas }, { count: usuarios }] = await Promise.all([
+  const [{ count: empresas }, { count: usuarios }, otrasAreas] = await Promise.all([
     supabase.from("empresas").select("id", { count: "exact", head: true }),
     supabase.from("perfiles").select("id", { count: "exact", head: true }),
+    otrasAreasDe("/admin"),
   ]);
 
   return (
@@ -46,6 +63,7 @@ async function ConsolaAutenticada({ children }: { children: React.ReactNode }) {
         </p>
       }
       correo={perfil.correo ?? undefined}
+      otrasAreas={otrasAreas}
     >
       {children}
     </AppShell>

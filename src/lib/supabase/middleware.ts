@@ -39,7 +39,9 @@ export async function updateSession(request: NextRequest) {
   if (esRutaProtegida && !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", request.nextUrl.pathname);
+    // Con la consulta incluida: el QR del dorsal lleva `?codigo=` y sin esto se
+    // perdía al pasar por el login, dejando al operador en el buscador vacío.
+    url.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 

@@ -10,7 +10,7 @@ import { iniciarSesion, type LoginState } from "./actions";
 
 const initialState: LoginState = { status: "idle" };
 
-export function LoginForm({ next }: { next?: string }) {
+export function LoginForm({ next, organizador = false }: { next?: string; organizador?: boolean }) {
   const [state, formAction, pending] = useActionState(iniciarSesion, initialState);
 
   // El límite de intentos no se resuelve reintentando, así que además del aviso
@@ -38,12 +38,17 @@ export function LoginForm({ next }: { next?: string }) {
       </Boton>
 
       <div className="flex flex-col items-center gap-2 text-sm text-atenuado">
-        <p>
-          ¿No tienes cuenta?{" "}
-          <Link href="/registro" className="font-semibold text-cian hover:underline">
-            Crear cuenta
-          </Link>
-        </p>
+        {/* Las cuentas de organizador no se crean aquí: las invita el equipo de
+            RunTicket desde la empresa. Ofrecer «Crear cuenta» llevaría a
+            registrarse como corredor y seguir sin panel. */}
+        {!organizador && (
+          <p>
+            ¿No tienes cuenta?{" "}
+            <Link href="/registro" className="font-semibold text-cian hover:underline">
+              Crear cuenta
+            </Link>
+          </p>
+        )}
         <Link href="/recuperar-password" className="text-cian hover:underline">
           Recuperar contraseña
         </Link>

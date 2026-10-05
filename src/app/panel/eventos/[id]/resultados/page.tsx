@@ -6,9 +6,17 @@ import { formatTiempo } from "@/lib/format";
 import { CargarResultadosForm } from "./CargarResultadosForm";
 import { publicarResultados, recalcularPosiciones } from "./actions";
 import { Boton } from "@/components/ui/Boton";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 
-export default async function ResultadosPanelPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ResultadosPanelPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ aviso?: string }>;
+}) {
   const { id } = await params;
+  const { aviso } = await searchParams;
   const membresia = await getEmpresaActivaDelPanel();
   const supabase = await createClient();
 
@@ -61,6 +69,7 @@ export default async function ResultadosPanelPage({ params }: { params: Promise<
 
   return (
     <div className="flex flex-col gap-6">
+      <AvisoDeRuta aviso={aviso} />
       <div>
         {/* La vuelta la pone la cabecera del evento. */}
         <h1 className="text-2xl font-semibold text-texto">Resultados</h1>

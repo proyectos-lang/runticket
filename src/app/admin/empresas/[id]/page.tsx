@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ChipEstadoEmpresa, ZonaPeligrosa } from "@/components/admin/Chips";
 import { Boton } from "@/components/ui/Boton";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 import { actualizarEstadoEmpresa } from "../actions";
 import { actualizarEmpresa, guardarLogo, quitarLogo } from "./actions";
 import { FormularioEmpresa } from "@/components/empresa/FormularioEmpresa";
@@ -10,8 +11,15 @@ import { InvitarMiembroForm } from "./InvitarMiembroForm";
 import { FilaMiembro } from "./FilaMiembro";
 import { LogoEmpresa } from "@/components/empresa/LogoEmpresa";
 
-export default async function EmpresaDetallePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EmpresaDetallePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ aviso?: string }>;
+}) {
   const { id } = await params;
+  const { aviso } = await searchParams;
   const supabase = await createClient();
 
   const { data: empresa } = await supabase.from("empresas").select("*").eq("id", id).maybeSingle();
@@ -48,6 +56,7 @@ export default async function EmpresaDetallePage({ params }: { params: Promise<{
 
   return (
     <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
       <div>
         <Link href="/admin/empresas" className="text-sm text-mudo hover:text-texto">
           ← Empresas

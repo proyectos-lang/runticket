@@ -1,5 +1,6 @@
 "use server";
 
+import { avisarInvitacionEmpresa } from "@/lib/correo/invitacion";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -147,6 +148,7 @@ export async function invitarMiembro(
     .maybeSingle();
 
   let usuarioId = perfil?.id;
+  const yaTeniaCuenta = Boolean(usuarioId);
   if (!usuarioId) {
     const sitio = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
     const { data, error } = await admin.auth.admin.inviteUserByEmail(correo, {
@@ -166,6 +168,16 @@ export async function invitarMiembro(
     );
   if (error) {
     return { status: "error", message: "No se pudo registrar la invitación: " + error.message };
+  }
+
+  // A los nuevos los avisa Supabase; a los que ya existían no les avisaba nadie.
+  if (yaTeniaCuenta) {
+    const { data: empresa } = await admin
+      .from("empresas")
+      .select("nombre_comercial")
+      .eq("id", empresaId)
+      .maybeSingle();
+    await avisarInvitacionEmpresa(correo, empresa?.nombre_comercial ?? "una empresa");
   }
 
   revalidatePath(`/admin/empresas/${empresaId}`);

@@ -6,6 +6,7 @@ import { cambiarEstadoEvento } from "../actions";
 import { TarjetaModulo, GrupoTarjetas } from "@/components/panel/TarjetaModulo";
 import { PASOS_CONFIGURACION } from "@/components/shell/navegacion";
 import { BotonEnlace } from "@/components/ui/Boton";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 import { AvisoPublicacion, pendientesDePublicacion } from "@/components/panel/EstadoEvento";
 import { TarjetaMetricaPanel } from "@/components/panel/Medidores";
 import type { EstadoEvento, ResumenEvento } from "@/lib/supabase/database.types";
@@ -38,8 +39,15 @@ const SIGUIENTES: Record<EstadoEvento, { estado: EstadoEvento; etiqueta: string 
   cancelado: [{ estado: "borrador", etiqueta: "Devolver a borrador" }],
 };
 
-export default async function EventoResumenPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EventoResumenPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ aviso?: string }>;
+}) {
   const { id } = await params;
+  const { aviso } = await searchParams;
   const membresia = await getEmpresaActivaDelPanel();
   const supabase = await createClient();
 
@@ -75,6 +83,7 @@ export default async function EventoResumenPage({ params }: { params: Promise<{ 
 
   return (
     <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
       <div className="grid gap-3 sm:grid-cols-4">
         <TarjetaMetricaPanel label="Inscritos" valor={n(r.inscritos)} />
         <TarjetaMetricaPanel label="Presentes" valor={n(r.asistencias)} />

@@ -1,5 +1,5 @@
 import "server-only";
-import { esSuperAdmin, getMembresiasActivas } from "./session";
+import { esSuperAdmin, getInvitacionesPendientes, getMembresiasActivas } from "./session";
 
 export type Ambito = {
   /** A dónde pertenece esta persona: su área principal. */
@@ -31,6 +31,11 @@ export async function ambitoDelUsuario(): Promise<Ambito> {
   const membresias = await getMembresiasActivas();
   if (membresias.length > 0) {
     return { href: "/panel", etiqueta: "Mi panel" };
+  }
+  // Invitado a una empresa y sin aceptar todavía: el único sitio donde se
+  // acepta es el panel, y sin esto no había ningún enlace que llevara allí.
+  if ((await getInvitacionesPendientes()).length > 0) {
+    return { href: "/panel", etiqueta: "Aceptar invitación" };
   }
   return { href: "/portal", etiqueta: "Mi cuenta" };
 }

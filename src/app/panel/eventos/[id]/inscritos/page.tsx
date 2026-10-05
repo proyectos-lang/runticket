@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getEmpresaActivaDelPanel } from "@/lib/auth/session";
 import { InformeInscritos } from "@/components/modulos/InformeInscritos";
+import { Aviso } from "@/components/ui/Aviso";
 
 /**
  * El mismo informe que `/panel/inscritos`, acotado a esta carrera.
@@ -29,12 +30,26 @@ export default async function InscritosPage({
     .maybeSingle();
   if (!evento) notFound();
 
+  // Confirmaciones con las que vuelven «Inscribir en mesa» y «Transferir». No son
+  // filtros: se sacan antes de armar la consulta, o acababan pegados al enlace
+  // de exportación.
+  const { nuevo, transferida, ...soloFiltros } = filtros;
   const consulta = new URLSearchParams(
-    Object.entries(filtros).filter(([, v]) => Boolean(v)) as [string, string][]
+    Object.entries(soloFiltros).filter(([, v]) => Boolean(v)) as [string, string][]
   );
 
   return (
     <div className="flex flex-col gap-6">
+      {nuevo && (
+        <Aviso tono="cian" titulo="Inscripción registrada">
+          La persona ya figura en el padrón con su dorsal.
+        </Aviso>
+      )}
+      {transferida && (
+        <Aviso tono="cian" titulo="Transferencia hecha">
+          La inscripción pasó a la nueva persona; la anterior queda como transferida.
+        </Aviso>
+      )}
       <div>
         {/* La vuelta la pone la cabecera del evento, común a todas sus
             pantallas: aquí duplicaba el enlace. */}

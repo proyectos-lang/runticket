@@ -23,7 +23,9 @@ export async function cerrarSesion() {
 export async function seleccionarEmpresaActiva(empresaId: string) {
   const membresias = await getMembresiasActivas();
   if (!membresias.some((m) => m.empresaId === empresaId)) {
-    throw new Error("No tienes acceso a esa empresa.");
+    // Membresía revocada mientras el selector seguía abierto: no es un fallo,
+    // es que ya no está. Se vuelve al panel, que recalcula qué queda.
+    redirect("/panel");
   }
 
   (await cookies()).set(COOKIE_EMPRESA, empresaId, {
@@ -39,8 +41,8 @@ export async function seleccionarEmpresaActiva(empresaId: string) {
 export async function aceptarInvitacionEmpresa(empresaId: string) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("aceptar_invitacion_empresa", { p_empresa_id: empresaId });
-  if (error) {
-    throw new Error("No se pudo aceptar la invitación: " + error.message);
-  }
+  // Solo falla si la invitación ya no existe (la retiraron o se aceptó en otra
+  // pestaña): al refrescar, el panel ya muestra lo que corresponde.
+  if (error) console.error("No se pudo aceptar la invitación:", error.message);
   revalidatePath("/panel");
 }

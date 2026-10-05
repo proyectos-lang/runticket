@@ -11,6 +11,7 @@ import {
   resumirConciliacion,
 } from "@/lib/pagos";
 import { Chip } from "@/components/ui/Chip";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 import { TarjetaMetrica, EtiquetaMono } from "@/components/ui/Datos";
 import { CLASE_CAMPO } from "@/components/ui/Campo";
 import { cambiarEstadoPago, conciliarPagosPixelPay, verificarPagoPixelPay } from "./actions";
@@ -29,9 +30,9 @@ const ESTADO_PIXELPAY: Record<string, string> = {
 export default async function PagosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ evento?: string }>;
+  searchParams: Promise<{ evento?: string; aviso?: string }>;
 }) {
-  const { evento: eventoFiltro } = await searchParams;
+  const { evento: eventoFiltro, aviso } = await searchParams;
   const membresia = await getEmpresaActivaDelPanel();
 
   // La información financiera está fuera del alcance del operador, igual que en
@@ -40,60 +41,64 @@ export default async function PagosPage({
 
   const supabase = await createClient();
 
-  const { data: eventos } = await supabase
-    .from("eventos")
-    .select("id, nombre, moneda")
-    .eq("empresa_id", membresia.empresaId)
-    .order("fecha_inicio", { ascending: false });
-
-  const { data: pagos } = await supabase
-    .from("pagos")
-    .select(
-      "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, comprobante_url, referencia_externa, notas, created_at, verificado_en, pasarela_uuid, pasarela_estado, pasarela_verificado_en, pasarela_transaccion, pasarela_autorizacion, pasarela_monto_cobrado, pasarela_alerta"
-    )
-    .eq("empresa_id", membresia.empresaId)
-    .order("created_at", { ascending: false });
+  // Tres consultas que no dependen entre sí, en paralelo. Antes esta pantalla
+  // encadenaba ocho viajes a la base uno detrás de otro y era la más lenta del
+  // panel.
+  const [{ data: eventos }, { data: pagos }, { data: activas }] = await Promise.all([
+    supabase
+      .from("eventos")
+      .select("id, nombre, moneda")
+      .eq("empresa_id", membresia.empresaId)
+      .order("fecha_inicio", { ascending: false }),
+    supabase
+      .from("pagos")
+      .select(
+        "id, inscripcion_id, grupo_inscripcion_id, monto, moneda, metodo, estado, comprobante_url, referencia_externa, notas, created_at, verificado_en, pasarela_uuid, pasarela_estado, pasarela_verificado_en, pasarela_transaccion, pasarela_autorizacion, pasarela_monto_cobrado, pasarela_alerta"
+      )
+      .eq("empresa_id", membresia.empresaId)
+      .order("created_at", { ascending: false }),
+    // Inscripciones activas de la empresa: de aquí salen las candidatas a un cobro
+    // manual. Se piden todas y se descartan después las que ya tienen un pago
+    // confirmado, que es lo que de verdad define «quién debe».
+    supabase
+      .from("inscripciones")
+      .select("id, evento_id, corredor_id, categoria_id, numero_dorsal, precio_pagado, moneda")
+      .eq("empresa_id", membresia.empresaId)
+      .eq("estado", "activa")
+      .order("created_at", { ascending: false }),
+  ]);
 
   // Une cada pago con su inscripción, evento y corredor para poder mostrarlo y
   // filtrar por evento.
   const inscripcionIds = [...new Set((pagos ?? []).map((p) => p.inscripcion_id).filter(Boolean) as string[])];
-  const { data: inscripciones } = inscripcionIds.length
-    ? await supabase
-        .from("inscripciones")
-        .select("id, evento_id, corredor_id, categoria_id, numero_dorsal")
-        .in("id", inscripcionIds)
-    : { data: [] as never[] };
-
-  /**
-   * Un pago familiar no cuelga de una inscripción sino de un grupo, así que sin
-   * esto aparecía en la tabla sin evento ni corredor —solo guiones— y sus
-   * miembros seguían contando como «por cobrar» aunque ya estuviera pagado.
-   */
   const grupoIds = [
     ...new Set((pagos ?? []).map((p) => p.grupo_inscripcion_id).filter(Boolean) as string[]),
   ];
-  const { data: miembrosDeGrupo } = grupoIds.length
-    ? await supabase
-        .from("inscripciones")
-        .select("id, evento_id, corredor_id, grupo_inscripcion_id")
-        .in("grupo_inscripcion_id", grupoIds)
-        .eq("estado", "activa")
-    : { data: [] as { id: string; evento_id: string; corredor_id: string; grupo_inscripcion_id: string | null }[] };
+  type Insc = { id: string; evento_id: string; corredor_id: string; categoria_id: string; numero_dorsal: number | null };
+  type Miembro = { id: string; evento_id: string; corredor_id: string; grupo_inscripcion_id: string | null };
+  type Grupo = { id: string; evento_id: string; pagador_id: string };
+  const [{ data: inscripciones }, { data: miembrosDeGrupo }, { data: grupos }] = await Promise.all([
+    inscripcionIds.length
+      ? supabase
+          .from("inscripciones")
+          .select("id, evento_id, corredor_id, categoria_id, numero_dorsal")
+          .in("id", inscripcionIds)
+      : Promise.resolve({ data: [] as Insc[] }),
+    grupoIds.length
+      ? supabase
+          .from("inscripciones")
+          .select("id, evento_id, corredor_id, grupo_inscripcion_id")
+          .in("grupo_inscripcion_id", grupoIds)
+          .eq("estado", "activa")
+      : Promise.resolve({ data: [] as Miembro[] }),
+    grupoIds.length
+      ? supabase.from("grupos_inscripcion").select("id, evento_id, pagador_id").in("id", grupoIds)
+      : Promise.resolve({ data: [] as Grupo[] }),
+  ]);
 
-  const { data: grupos } = grupoIds.length
-    ? await supabase.from("grupos_inscripcion").select("id, evento_id, pagador_id").in("id", grupoIds)
-    : { data: [] as { id: string; evento_id: string; pagador_id: string }[] };
-
-  // Inscripciones activas de la empresa: de aquí salen las candidatas a un cobro
-  // manual. Se piden todas y se descartan después las que ya tienen un pago
-  // confirmado, que es lo que de verdad define «quién debe».
-  const { data: activas } = await supabase
-    .from("inscripciones")
-    .select("id, evento_id, corredor_id, categoria_id, numero_dorsal, precio_pagado, moneda")
-    .eq("empresa_id", membresia.empresaId)
-    .eq("estado", "activa")
-    .order("created_at", { ascending: false });
-
+  // Un pago familiar no cuelga de una inscripción sino de un grupo, así que sin
+  // sus miembros aparecía en la tabla sin evento ni corredor —solo guiones— y
+  // ellos seguían contando como «por cobrar» aunque ya estuviera pagado.
   const corredorIds = [
     ...new Set([
       ...(inscripciones ?? []).map((i) => i.corredor_id),
@@ -101,14 +106,16 @@ export default async function PagosPage({
       ...(grupos ?? []).map((g) => g.pagador_id),
     ]),
   ];
-  const { data: perfiles } = corredorIds.length
-    ? await supabase.from("perfiles").select("id, nombres, apellidos, correo").in("id", corredorIds)
-    : { data: [] as never[] };
-
   const categoriaIds = [...new Set((activas ?? []).map((i) => i.categoria_id))];
-  const { data: categorias } = categoriaIds.length
-    ? await supabase.from("categorias").select("id, nombre").in("id", categoriaIds)
-    : { data: [] as never[] };
+  type Perfil = { id: string; nombres: string | null; apellidos: string | null; correo: string | null };
+  const [{ data: perfiles }, { data: categorias }] = await Promise.all([
+    corredorIds.length
+      ? supabase.from("perfiles").select("id, nombres, apellidos, correo").in("id", corredorIds)
+      : Promise.resolve({ data: [] as Perfil[] }),
+    categoriaIds.length
+      ? supabase.from("categorias").select("id, nombre").in("id", categoriaIds)
+      : Promise.resolve({ data: [] as { id: string; nombre: string }[] }),
+  ]);
 
   const nombreDe = (usuarioId: string | undefined) => {
     const perfil = perfiles?.find((x) => x.id === usuarioId);
@@ -186,19 +193,24 @@ export default async function PagosPage({
       };
     });
 
-  // Firma las URLs de los comprobantes que hay que revisar (bucket privado).
-  const admin = createAdminClient();
+  // Firma las URLs de los comprobantes que hay que revisar (bucket privado), en
+  // una sola llamada: antes era una por comprobante, en serie.
   const urlsComprobante = new Map<string, string>();
-  for (const f of porVerificar) {
-    if (!f.comprobante_url) continue;
-    const { data } = await admin.storage.from("comprobantes").createSignedUrl(f.comprobante_url, 600);
-    if (data?.signedUrl) urlsComprobante.set(f.id, data.signedUrl);
+  const conComprobante = porVerificar.filter((f) => f.comprobante_url);
+  if (conComprobante.length) {
+    const { data } = await createAdminClient()
+      .storage.from("comprobantes")
+      .createSignedUrls(conComprobante.map((f) => f.comprobante_url as string), 600);
+    data?.forEach((firma, i) => {
+      if (firma.signedUrl) urlsComprobante.set(conComprobante[i].id, firma.signedUrl);
+    });
   }
 
   const parametros = eventoFiltro ? `?evento=${eventoFiltro}` : "";
 
   return (
     <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-texto">Pagos y conciliación</h1>

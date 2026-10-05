@@ -22,7 +22,12 @@ export async function marcarPagoGrupoPorWhatsApp(grupoId: string): Promise<void>
     p_grupo_id: grupoId,
     p_metodo: "whatsapp",
   });
-  if (error) throw new Error("No se pudo registrar el pago: " + error.message);
+  // Es solo constancia del intento: si falla, el corredor igual abre WhatsApp y
+  // el organizador igual recibe su mensaje. No merece romper la pantalla.
+  if (error) {
+    console.error("No se pudo registrar el intento de pago por WhatsApp", error.message);
+    return;
+  }
   revalidatePath(`/portal/grupos/${grupoId}`);
 }
 

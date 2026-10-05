@@ -1,5 +1,6 @@
 "use server";
 
+import { mensajeDe, redirigirConAviso } from "@/lib/avisos";
 import { redirect } from "next/navigation";
 import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -100,7 +101,9 @@ export async function cambiarEstadoEvento(eventoId: string, nuevoEstado: EstadoE
     .maybeSingle();
 
   const { error } = await supabase.from("eventos").update({ estado: nuevoEstado }).eq("id", eventoId);
-  if (error) throw new Error("No se pudo actualizar el estado: " + error.message);
+  if (error) {
+    redirigirConAviso(`/panel/eventos/${eventoId}`, "No se pudo cambiar el estado: " + mensajeDe(error));
+  }
 
   // Sin correos, la encuesta se pide por la campana del portal. Dar la carrera
   // por finalizada es el único momento en que tiene sentido preguntar, así que

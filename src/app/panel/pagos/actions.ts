@@ -1,5 +1,6 @@
 "use server";
 
+import { mensajeDe, redirigirConAviso } from "@/lib/avisos";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +25,7 @@ export async function cambiarEstadoPago(pagoId: string, nuevoEstado: EstadoPago,
     p_nuevo_estado: nuevoEstado,
     p_notas: typeof notas === "string" && notas.trim() ? notas.trim() : null,
   });
-  if (error) throw new Error("No se pudo actualizar el pago: " + error.message);
+  if (error) redirigirConAviso("/panel/pagos", "No se pudo actualizar el pago: " + mensajeDe(error));
 
   // Confirmar o rechazar dinero es lo más sensible que hace el panel: queda en
   // la bitácora con quién, cuándo y desde qué IP.
@@ -166,10 +167,15 @@ export async function verificarPagoPixelPay(pagoId: string): Promise<void> {
     .eq("id", pagoId)
     .maybeSingle();
   if (!pago || pago.empresa_id !== membresia.empresaId || !pago.pasarela_uuid) {
-    throw new Error("Ese pago no es un cobro de PixelPay de tu empresa.");
+    redirigirConAviso("/panel/pagos", "Ese pago no es un cobro de PixelPay de tu empresa.");
   }
 
-  const resultado = await verificarCobro(pago.pasarela_uuid);
+  let resultado: string;
+  try {
+    resultado = await verificarCobro(pago.pasarela_uuid);
+  } catch (e) {
+    redirigirConAviso("/panel/pagos", "PixelPay no respondió: " + mensajeDe(e));
+  }
   await auditar({
     accion: "pago.verificado_pixelpay",
     entidad: "pagos",
@@ -183,7 +189,12 @@ export async function verificarPagoPixelPay(pagoId: string): Promise<void> {
 /** Verifica contra PixelPay todos los cobros con tarjeta de la empresa. */
 export async function conciliarPagosPixelPay(): Promise<void> {
   const membresia = await requireAdminEmpresaActivo();
-  const resumen = await conciliarConPixelPay({ empresaId: membresia.empresaId });
+  let resumen;
+  try {
+    resumen = await conciliarConPixelPay({ empresaId: membresia.empresaId });
+  } catch (e) {
+    redirigirConAviso("/panel/pagos", "No se pudo conciliar con PixelPay: " + mensajeDe(e));
+  }
   await auditar({
     accion: "pago.conciliado_pixelpay",
     entidad: "pagos",

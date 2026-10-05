@@ -1,12 +1,23 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Icono } from "./iconos";
 import { eventoDeRuta, navEvento, type SeccionNav } from "./navegacion";
 import { contextoDeCarrera, type ContextoCarrera } from "./contextoCarrera";
 import type { RolEmpresa } from "@/lib/supabase/database.types";
+
+/**
+ * Puntito que aparece mientras la pantalla de destino se está cargando. Con
+ * `loading.tsx` el cambio ya es casi inmediato; esto cubre el resto del tiempo
+ * para que el clic nunca parezca ignorado.
+ */
+function EnCamino() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return <span aria-hidden className="size-1.5 shrink-0 animate-pulse rounded-full bg-naranja-suave" />;
+}
 
 function estaActivo(pathname: string, href: string, exacto?: boolean) {
   return exacto ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -91,6 +102,7 @@ export function NavLateral({
               >
                 <Icono nombre={item.icono} className="size-4 shrink-0" />
                 <span className="flex-1 truncate">{item.etiqueta}</span>
+                <EnCamino />
                 {/* Un contador en cero no informa de nada: se oculta. */}
                 {item.pendiente && (
                   <span

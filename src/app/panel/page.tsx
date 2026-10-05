@@ -4,11 +4,17 @@ import { formatPrecio, formatFechaCorta, formatFechaLarga, diasHasta } from "@/l
 import { MedidorOcupacion, TarjetaMetricaPanel } from "@/components/panel/Medidores";
 import { ChipEstadoEvento } from "@/components/panel/EstadoEvento";
 import { BotonEnlace } from "@/components/ui/Boton";
+import { AvisoDeRuta } from "@/components/ui/AvisoDeRuta";
 import { AreaTemporal, BarrasHorizontales } from "@/components/metricas/Graficos";
 import { EstadoVacio } from "@/components/panel/EstadoVacio";
 import type { MetricasEmpresa, EstadoEvento } from "@/lib/supabase/database.types";
 
-export default async function PanelInicioPage() {
+export default async function PanelInicioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string }>;
+}) {
+  const { aviso } = await searchParams;
   const membresia = await getEmpresaActivaDelPanel();
   const esAdmin = membresia.rol === "admin_empresa";
   const supabase = await createClient();
@@ -33,6 +39,7 @@ export default async function PanelInicioPage() {
   if (totalEventos === 0) {
     return (
       <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-semibold text-texto">
             Hola, {membresia.nombreComercial}
@@ -53,6 +60,7 @@ export default async function PanelInicioPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AvisoDeRuta aviso={aviso} />
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold text-texto">
           Hola, {membresia.nombreComercial}

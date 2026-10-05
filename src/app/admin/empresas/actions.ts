@@ -1,5 +1,6 @@
 "use server";
 
+import { mensajeDe, redirigirConAviso } from "@/lib/avisos";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
@@ -110,13 +111,13 @@ export async function actualizarEstadoEmpresa(
   nuevoEstado: "activa" | "suspendida",
 ) {
   if (!(await esSuperAdmin())) {
-    throw new Error("No autorizado.");
+    redirigirConAviso("/admin", "Solo el administrador de la plataforma puede hacer eso.");
   }
 
   const supabase = await createClient();
   const { error } = await supabase.from("empresas").update({ estado: nuevoEstado }).eq("id", empresaId);
   if (error) {
-    throw new Error("No se pudo actualizar el estado: " + error.message);
+    redirigirConAviso(`/admin/empresas/${empresaId}`, "No se pudo actualizar el estado: " + mensajeDe(error));
   }
 
   revalidatePath(`/admin/empresas/${empresaId}`);

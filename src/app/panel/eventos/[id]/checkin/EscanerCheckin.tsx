@@ -79,7 +79,13 @@ export function EscanerCheckin({
     setEstado({ tipo: "buscando" });
     const datos = await buscarParaCheckin(eventoId, termino);
     setEstado({ tipo: "resultado", datos });
-    if (navigator.vibrate) navigator.vibrate(datos.estado === "encontrado" ? 60 : [40, 60, 40]);
+    // Chrome bloquea la vibración hasta que el usuario toque la página y lo
+    // anota como error en consola; no es un fallo, es un aviso cortés.
+    try {
+      navigator.vibrate?.(datos.estado === "encontrado" ? 60 : [40, 60, 40]);
+    } catch {
+      // Sin vibración: el sonido y el color ya avisan.
+    }
   }
 
   // Si el operador escaneó el QR con la cámara nativa del teléfono, aterriza
