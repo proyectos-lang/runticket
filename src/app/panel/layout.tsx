@@ -17,6 +17,7 @@ import { navPanel } from "@/components/shell/navegacion";
 import { TIPOS_DE_PANEL } from "@/lib/notificaciones";
 import { Boton, BotonEnlace } from "@/components/ui/Boton";
 import { MarcaVertical } from "@/components/publico/MarcaVertical";
+import { enlaceWhatsAppPlataforma, MENSAJE_ORGANIZADOR, WHATSAPP_PLATAFORMA } from "@/lib/contacto";
 
 /**
  * El panel es dinámico de principio a fin y no hay nada que prerenderizar: cada
@@ -57,8 +58,18 @@ async function PanelAutenticado({ children }: { children: React.ReactNode }) {
           <p className="text-sm leading-relaxed text-atenuado">
             {invitaciones.length > 0
               ? "Te invitaron a gestionar carreras. Acepta la invitación para entrar al panel de la empresa."
-              : "Tu cuenta no administra ninguna empresa todavía. Si organizas carreras, el equipo de RunTicket da de alta tu empresa y te invita desde aquí."}
+              : "Tu cuenta no administra ninguna empresa todavía. Si organizas carreras, escríbenos y damos de alta tu empresa; te llegará la invitación a esta misma cuenta."}
           </p>
+          {invitaciones.length === 0 && (
+            <a
+              href={enlaceWhatsAppPlataforma(MENSAJE_ORGANIZADOR)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mx-auto mt-1 inline-flex items-center gap-2 rounded-full border border-linea-fuerte px-4 py-2 text-sm font-semibold text-texto transition-colors hover:border-texto/25"
+            >
+              WhatsApp {WHATSAPP_PLATAFORMA}
+            </a>
+          )}
         </div>
         {invitaciones.length > 0 && (
           <div className="flex flex-col gap-3">

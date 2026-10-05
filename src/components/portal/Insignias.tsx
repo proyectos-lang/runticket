@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import { EncabezadoSeccion } from "./Historial";
+import { formatFechaCorta } from "@/lib/format";
 import type { InsigniaDeCorredor } from "@/lib/supabase/database.types";
 
 /**
@@ -45,7 +46,7 @@ export function Insignias({ insignias }: { insignias: InsigniaDeCorredor[] }) {
                 <p className="truncate text-sm text-atenuado">{i.descripcion}</p>
               )}
               <p className="truncate font-mono text-[0.625rem] uppercase tracking-etiqueta text-mudo">
-                {i.empresa}
+                {formatFechaCorta(i.obtenida_en)} · {i.empresa}
               </p>
             </div>
           </li>

@@ -5,6 +5,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { ambitoDelUsuario } from "@/lib/auth/destino";
 import { rutaInternaSegura } from "@/lib/seguridad";
 import { LoginForm } from "./LoginForm";
+import { enlaceWhatsAppPlataforma, MENSAJE_ORGANIZADOR } from "@/lib/contacto";
 
 /**
  * `/auth/confirmar` redirige aquí con `?error=` cuando un enlace de correo no
@@ -90,6 +91,16 @@ export default async function LoginPage({
       <p className="text-center text-sm text-atenuado">
         {organizador ? (
           <>
+            ¿Tu empresa aún no está en RunTicket?{" "}
+            <a
+              href={enlaceWhatsAppPlataforma(MENSAJE_ORGANIZADOR)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-cian hover:underline"
+            >
+              Escríbenos por WhatsApp
+            </a>
+            <br />
             ¿Vienes a correr?{" "}
             <Link href="/login" className="font-semibold text-cian hover:underline">
               Entrar como corredor

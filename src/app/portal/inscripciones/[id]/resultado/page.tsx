@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 import { formatTiempo, formatRitmo, formatFechaMono, distanciaSiAporta } from "@/lib/format";
 import { segundosDeIntervalo, trayectoriaDelCorredor } from "@/lib/portal/trayectoria";
 import { BarraPercentil, percentilDe } from "@/components/portal/Historial";
-import { PlaceholderMedia } from "@/components/ui/Datos";
+import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
 import { BotonEnlace } from "@/components/ui/Boton";
 import { claseBoton } from "@/components/ui/estilosBoton";
 import { Chip } from "@/components/ui/Chip";
 import { EncuestaNps } from "../EncuestaNps";
 import { responderEncuesta } from "../actions";
+import { CompartirImagen } from "@/components/portal/CompartirImagen";
 
 export const metadata: Metadata = {
   title: "Mi resultado | RunTicket",
@@ -244,10 +245,38 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
           <BotonEnlace href={`/eventos/${evento.slug}/resultados`} variante="secundaria" ancho>
             Ver clasificación completa
           </BotonEnlace>
-          <BotonEnlace href={`/eventos/${evento.slug}/fotos`} variante="fantasma" ancho>
-            Fotos del evento
+          <BotonEnlace
+            href={
+              inscripcion.numero_dorsal !== null
+                ? `/eventos/${evento.slug}/fotos?dorsal=${inscripcion.numero_dorsal}`
+                : `/eventos/${evento.slug}/fotos`
+            }
+            variante="fantasma"
+            ancho
+          >
+            {inscripcion.numero_dorsal !== null ? "Mis fotos" : "Fotos del evento"}
           </BotonEnlace>
         </div>
+
+        {/* Con tiempo publicado hay algo que presumir: la imagen lleva el
+            tiempo, el puesto y el percentil sobre la portada de la carrera. */}
+        {segundos !== null && (
+          <section className="flex flex-col gap-3 rounded-xl border border-linea bg-superficie p-4">
+            <div className="flex flex-col gap-1">
+              <EtiquetaMono>Compartir mi resultado</EtiquetaMono>
+              <p className="text-sm text-atenuado">
+                Una imagen lista para tu historia o tu publicación, con tu tiempo sobre la portada
+                de la carrera.
+              </p>
+            </div>
+            <CompartirImagen
+              url={`/portal/inscripciones/${id}/resultado.png`}
+              nombreArchivo={`${evento.slug}-resultado`}
+              titulo={`Mi resultado en ${evento.nombre}`}
+              texto={`Corrí ${evento.nombre} en ${formatTiempo(resultado!.tiempo_oficial)} · RunTicket HN`}
+            />
+          </section>
+        )}
 
         {puedeOpinar && (
           <EncuestaNps

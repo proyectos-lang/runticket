@@ -28,8 +28,10 @@ export async function generateMetadata({
  */
 export default async function FotosPublicasPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ dorsal?: string }>;
 }) {
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
@@ -46,7 +48,7 @@ export default async function FotosPublicasPage({
 
       <div className="mt-8">
         <Suspense fallback={null}>
-          <Buscador params={params} />
+          <Buscador params={params} searchParams={searchParams} />
         </Suspense>
       </div>
     </main>
@@ -65,7 +67,16 @@ async function VueltaAlEvento({ params }: { params: Promise<{ slug: string }> })
   );
 }
 
-async function Buscador({ params }: { params: Promise<{ slug: string }> }) {
+async function Buscador({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ dorsal?: string }>;
+}) {
   const { slug } = await params;
-  return <BuscadorFotos slug={slug} />;
+  // Desde el portal se llega con el dorsal puesto: el corredor no tiene por qué
+  // volver a escribir lo que la aplicación ya sabe.
+  const { dorsal } = await searchParams;
+  return <BuscadorFotos slug={slug} inicial={dorsal} />;
 }

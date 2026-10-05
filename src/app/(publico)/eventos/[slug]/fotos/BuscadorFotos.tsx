@@ -1,31 +1,45 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { buscarFotos, type Foto } from "./actions";
 import { Boton } from "@/components/ui/Boton";
 
-export function BuscadorFotos({ slug }: { slug: string }) {
-  const [dorsal, setDorsal] = useState("");
+export function BuscadorFotos({ slug, inicial }: { slug: string; inicial?: string }) {
+  const [dorsal, setDorsal] = useState(inicial ?? "");
   const [fotos, setFotos] = useState<Foto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [buscando, startBusqueda] = useTransition();
+
+  const buscar = (numero: string) => {
+    setError(null);
+    startBusqueda(async () => {
+      const res = await buscarFotos(slug, numero);
+      if (res.status === "error") {
+        setError(res.message);
+        setFotos(null);
+      } else {
+        setFotos(res.fotos);
+      }
+    });
+  };
+
+  // Con el dorsal en la URL se busca solo al abrir la página.
+  useEffect(() => {
+    if (!inicial) return;
+    // Un tic después, no en el propio efecto: React desaconseja cambiar estado
+    // de forma síncrona dentro de uno.
+    const t = window.setTimeout(() => buscar(inicial), 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al montar
+  }, []);
 
   return (
     <div className="flex flex-col gap-6">
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          setError(null);
-          startBusqueda(async () => {
-            const res = await buscarFotos(slug, dorsal);
-            if (res.status === "error") {
-              setError(res.message);
-              setFotos(null);
-            } else {
-              setFotos(res.fotos);
-            }
-          });
+          buscar(dorsal);
         }}
         className="flex flex-wrap items-end gap-3"
       >

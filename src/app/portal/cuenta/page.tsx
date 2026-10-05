@@ -6,7 +6,6 @@ import { cerrarSesion } from "@/lib/auth/actions";
 import { TIPOS_DE_PANEL_SQL } from "@/lib/notificaciones";
 import { EncabezadoSeccion } from "@/components/portal/Historial";
 import { Boton } from "@/components/ui/Boton";
-import { Aviso } from "@/components/ui/Aviso";
 
 export const metadata: Metadata = {
   title: "Ajustes de cuenta | RunTicket",
@@ -106,7 +105,6 @@ export default async function CuentaPage() {
           href="/portal/perfil"
         />
         <FilaAjuste label="Contraseña" valor="Cambiar" href="/recuperar-password" />
-        <FilaAjuste label="Idioma" valor="Español" />
       </section>
 
       <section className="flex flex-col">
@@ -143,14 +141,6 @@ export default async function CuentaPage() {
           Cerrar sesión
         </Boton>
       </form>
-
-      {/* Se documenta en vez de dibujarse: unos interruptores que no persisten
-          o una descarga que no existe son peores que no ofrecerlos. */}
-      <Aviso tono="azul" titulo="Todavía no disponible">
-        Los métodos de pago guardados, las preferencias de notificación, la descarga de tus datos
-        y la eliminación de cuenta requieren desarrollo en el servidor y aún no están construidos.
-        Para cualquiera de esas cuatro cosas, escribe al administrador de la plataforma.
-      </Aviso>
     </div>
   );
 }

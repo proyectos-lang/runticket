@@ -7,6 +7,7 @@ import { HeroEvento } from "@/components/publico/HeroEvento";
 import { ContadorCupos } from "@/components/publico/ContadorCupos";
 import { PildoraEnlace } from "@/components/ui/Pildora";
 import { BotonEnlace } from "@/components/ui/Boton";
+import { enlaceWhatsAppPlataforma, MENSAJE_ORGANIZADOR, WHATSAPP_PLATAFORMA } from "@/lib/contacto";
 
 /**
  * La portada es la página que más importa para SEO, así que se prerenderiza
@@ -99,12 +100,22 @@ export default async function HomePage() {
             <p className="text-sm leading-relaxed text-atenuado">
               Inscripciones en línea, pago con tarjeta o transferencia, dorsales con QR, entrega
               de kits y resultados, todo desde un solo panel. Si tu empresa ya está en RunTicket,
-              entra con tu cuenta; si no, el equipo de RunTicket la da de alta.
+              entra con tu cuenta; si no, escríbenos por WhatsApp y la damos de alta.
             </p>
           </div>
-          <BotonEnlace href="/login?como=organizador" variante="secundaria" tamano="lg" className="shrink-0">
-            Entrar al panel de organizadores
-          </BotonEnlace>
+          <div className="flex shrink-0 flex-col gap-2.5 sm:flex-row">
+            <a
+              href={enlaceWhatsAppPlataforma(MENSAJE_ORGANIZADOR)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-13 items-center justify-center rounded-md border border-linea-fuerte bg-superficie px-6 text-sm font-semibold text-texto transition-colors hover:border-texto/25"
+            >
+              WhatsApp {WHATSAPP_PLATAFORMA}
+            </a>
+            <BotonEnlace href="/login?como=organizador" variante="secundaria" tamano="lg">
+              Entrar al panel
+            </BotonEnlace>
+          </div>
         </div>
       </section>
     </main>

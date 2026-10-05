@@ -168,7 +168,7 @@ export default async function InscripcionDetallePage({
       )}
 
       <Link
-        href="/portal"
+        href="/portal/inscripciones"
         className="font-mono text-xs uppercase tracking-etiqueta text-mudo transition-colors hover:text-texto"
       >
         ← Mis inscripciones

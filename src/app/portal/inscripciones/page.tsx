@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { trayectoriaDelCorredor, type ClaseCarrera } from "@/lib/portal/trayectoria";
-import { FilaInscripcion, EncabezadoSeccion } from "@/components/portal/Historial";
+import { FilaInscripcion, TarjetaCarrera, EncabezadoSeccion } from "@/components/portal/Historial";
 import { PildoraEnlace } from "@/components/ui/Pildora";
 import { BotonEnlace } from "@/components/ui/Boton";
 import Link from "next/link";
@@ -76,7 +76,15 @@ export default async function MisInscripcionesPage({
       <section className="flex flex-col gap-2.5">
         <EncabezadoSeccion>{PESTANAS.find((p) => p.clave === activa)!.etiqueta}</EncabezadoSeccion>
         {lista.length ? (
-          lista.map((c) => <FilaInscripcion key={c.inscripcionId} carrera={c} />)
+          // Las corridas se enseñan con su tiempo y su portada; las demás, con su
+          // pago. «Ver todas mis carreras» llevaba antes a una lista de recibos.
+          lista.map((c) =>
+            activa === "finalizada" ? (
+              <TarjetaCarrera key={c.inscripcionId} carrera={c} />
+            ) : (
+              <FilaInscripcion key={c.inscripcionId} carrera={c} />
+            )
+          )
         ) : (
           <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-linea-fuerte px-6 py-10 text-center">
             <p className="text-sm text-atenuado">{VACIO[activa]}</p>

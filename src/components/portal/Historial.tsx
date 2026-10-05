@@ -7,6 +7,7 @@ import {
   formatFechaMono,
   distanciaSiAporta,
   formatPrecio,
+  formatDistancia,
 } from "@/lib/format";
 import { segundosDeIntervalo, type CarreraDelCorredor } from "@/lib/portal/trayectoria";
 import { EtiquetaMono, PlaceholderMedia } from "@/components/ui/Datos";
@@ -15,6 +16,16 @@ import { BotonEnlace } from "@/components/ui/Boton";
 /* ------------------------------------------------------------------------ */
 /* Cabecera de identidad                                                     */
 /* ------------------------------------------------------------------------ */
+
+/** «Camila Prueba» → «CP», para el avatar de quien no ha subido foto. */
+export function inicialesDe(nombre: string): string {
+  return nombre
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join("");
+}
 
 export function CabeceraPerfil({
   nombre,
@@ -29,24 +40,33 @@ export function CabeceraPerfil({
   desdeAnio: number | null;
   club: string | null;
 }) {
-  const meta = [ciudad, desdeAnio && `Desde ${desdeAnio}`].filter(Boolean).join(" · ");
+  const meta = [ciudad, desdeAnio && `Corriendo desde ${desdeAnio}`].filter(Boolean).join(" · ");
 
   return (
-    <header className="flex items-center gap-4 border-b border-linea px-6 pb-6 pt-7">
+    <header className="relative flex items-center gap-4 overflow-hidden border-b border-linea px-6 pb-7 pt-8">
+      {/* El mismo brillo que la pantalla de «Estás inscrito»: la cabecera es la
+          tarjeta de presentación del corredor y merece algo más que una línea. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -left-24 -top-32 size-80 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(255,106,26,.26), transparent 68%)" }}
+      />
       <Link
         href="/portal/perfil"
         aria-label="Editar mi perfil"
-        className="relative size-16 shrink-0 overflow-hidden rounded-full border-2 border-naranja"
+        className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-naranja bg-superficie-2"
       >
         {fotoUrl ? (
-          <Image src={fotoUrl} alt="" fill sizes="66px" className="object-cover" />
+          <Image src={fotoUrl} alt="" fill sizes="80px" className="object-cover" />
         ) : (
-          <PlaceholderMedia etiqueta="Foto" className="absolute inset-0" />
+          // Las iniciales, no una trama con la palabra «Foto»: eso parecía una
+          // maqueta sin terminar.
+          <span className="display text-2xl text-texto">{inicialesDe(nombre)}</span>
         )}
       </Link>
 
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="truncate text-xl font-extrabold tracking-display text-texto">{nombre}</h1>
+      <div className="relative flex min-w-0 flex-col gap-1">
+        <h1 className="display truncate text-2xl text-texto">{nombre}</h1>
         {meta && (
           <p className="truncate font-mono text-[0.6875rem] uppercase tracking-etiqueta text-texto/45">
             {meta}
@@ -385,5 +405,115 @@ export function FilaInscripcion({ carrera }: { carrera: CarreraDelCorredor }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Mejores marcas por distancia                                              */
+/* ------------------------------------------------------------------------ */
+
+export function RecordsPorDistancia({
+  mejores,
+}: {
+  mejores: { distanciaKm: number; tiempo: string }[];
+}) {
+  if (mejores.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {mejores.map((m) => (
+        <span
+          key={m.distanciaKm}
+          className="tabular inline-flex items-baseline gap-2 rounded-full border border-linea bg-superficie px-3.5 py-2 font-mono text-sm"
+        >
+          <span className="text-[0.625rem] font-bold uppercase tracking-etiqueta text-mudo">
+            {formatDistancia(m.distanciaKm) ?? `${m.distanciaKm} km`}
+          </span>
+          <span className="font-bold text-texto">{formatTiempo(m.tiempo)}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Tarjeta de carrera con portada                                            */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Una carrera corrida, con la portada del evento de fondo y el tiempo encima.
+ * Es la pieza que hace que el historial se vea como un álbum y no como un
+ * listado, y la misma composición que la imagen que se comparte en redes.
+ */
+export function TarjetaCarrera({ carrera }: { carrera: CarreraDelCorredor }) {
+  const segundos = segundosDeIntervalo(carrera.tiempo);
+  const ritmo =
+    segundos !== null && carrera.distanciaKm ? formatRitmo(segundos, carrera.distanciaKm) : null;
+  const sinPublicar = segundos === null;
+  const distancia = distanciaSiAporta(carrera.categoria, carrera.distanciaKm) ?? carrera.categoria;
+
+  return (
+    <Link
+      href={`/portal/inscripciones/${carrera.inscripcionId}/resultado`}
+      className={`relative flex h-48 flex-col justify-end overflow-hidden rounded-2xl border bg-superficie transition-colors sm:h-52 ${
+        carrera.esRecord ? "border-naranja/35" : "border-linea hover:border-linea-fuerte"
+      }`}
+    >
+      {carrera.banner ? (
+        <Image src={carrera.banner} alt="" fill sizes="(min-width: 640px) 640px, 100vw" className="object-cover" />
+      ) : (
+        <PlaceholderMedia variante="calida" className="absolute inset-0" />
+      )}
+      <div
+        aria-hidden
+        className="absolute inset-0"
+        style={{ background: "linear-gradient(to bottom, rgba(7,8,10,.1) 0%, rgba(7,8,10,.55) 45%, rgba(7,8,10,.94) 100%)" }}
+      />
+
+      <div className="absolute left-4 top-4 flex items-center gap-2">
+        <span className="tabular rounded-full bg-fondo/70 px-2.5 py-1 font-mono text-[0.625rem] font-bold uppercase tracking-etiqueta text-texto/80 backdrop-blur">
+          {formatMesMono(carrera.fecha, carrera.zonaHoraria)}
+        </span>
+        {carrera.participante && (
+          <span className="rounded-full border border-azul/40 bg-azul/20 px-2.5 py-1 font-mono text-[0.625rem] font-bold uppercase tracking-etiqueta text-azul-texto backdrop-blur">
+            {carrera.participante.split(" ")[0]}
+          </span>
+        )}
+        {carrera.esRecord && !sinPublicar && (
+          <span className="rounded-full border border-naranja/50 bg-naranja/20 px-2.5 py-1 font-mono text-[0.625rem] font-bold uppercase tracking-etiqueta text-naranja-suave backdrop-blur">
+            ▲ Récord
+          </span>
+        )}
+      </div>
+
+      <div className="relative flex items-end justify-between gap-3 p-4">
+        <div className="flex min-w-0 flex-col gap-1">
+          <span className="display truncate text-lg leading-tight text-texto">{carrera.evento}</span>
+          <span className="tabular truncate font-mono text-[0.65625rem] uppercase tracking-etiqueta text-texto/60">
+            {[
+              distancia,
+              !sinPublicar &&
+                carrera.puesto !== null &&
+                `Puesto ${carrera.puesto}${carrera.participantes ? `/${carrera.participantes}` : ""}`,
+              !sinPublicar && ritmo,
+              sinPublicar && "Resultados en revisión",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
+        </div>
+        <span
+          className={`tabular shrink-0 font-mono text-2xl font-black tracking-display ${
+            sinPublicar ? "text-texto/35" : carrera.esRecord ? "text-cian" : "text-texto"
+          }`}
+        >
+          {sinPublicar ? "—:—:—" : formatTiempo(carrera.tiempo)}
+        </span>
+      </div>
+      {!sinPublicar && (
+        <div className="relative px-4 pb-4">
+          <BarraPercentil puesto={carrera.puesto} total={carrera.participantes} />
+        </div>
+      )}
+    </Link>
   );
 }

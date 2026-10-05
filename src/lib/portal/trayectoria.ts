@@ -34,6 +34,10 @@ export type CarreraDelCorredor = {
   puesto: number | null;
   /** Cuántos corredores tienen tiempo publicado en ese evento. */
   participantes: number | null;
+  puestoCategoria: number | null;
+  /** Portada del evento, para las tarjetas y las imágenes compartibles. */
+  banner: string | null;
+  disciplina: string | null;
   /** Su mejor marca hasta hoy en esa distancia. */
   esRecord: boolean;
   /**
@@ -61,6 +65,8 @@ export type Trayectoria = {
     mejor: { tiempo: string; distanciaKm: number | null } | null;
     /** Su mejor tiempo en cada distancia, de menor a mayor distancia. */
     mejores: { distanciaKm: number; tiempo: string }[];
+    /** Carreras propias en las que quedó entre los tres primeros (general o de categoría). */
+    podios: number;
   };
   /** Del club declarado en la inscripción más reciente; no está en el perfil. */
   club: string | null;
@@ -81,7 +87,7 @@ const VACIA: Trayectoria = {
   proximas: [],
   finalizadas: [],
   canceladas: [],
-  metricas: { carreras: 0, kmTotales: 0, mejor: null, mejores: [] },
+  metricas: { carreras: 0, kmTotales: 0, mejor: null, mejores: [], podios: 0 },
   club: null,
   desdeAnio: null,
 };
@@ -132,7 +138,7 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
     await Promise.all([
       supabase
         .from("eventos")
-        .select("id, nombre, slug, fecha_inicio, zona_horaria, estado")
+        .select("id, nombre, slug, fecha_inicio, zona_horaria, estado, imagen_banner_url, disciplina")
         .in("id", eventoIds),
       supabase.from("categorias").select("id, nombre, distancia_km").in("id", categoriaIds),
       // Solo lo publicado. La política de la base deja al dueño leer también
@@ -141,7 +147,7 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
       // un total que solo cuenta los publicados.
       supabase
         .from("resultados")
-        .select("inscripcion_id, tiempo_oficial, posicion_general")
+        .select("inscripcion_id, tiempo_oficial, posicion_general, posicion_categoria")
         .eq("publicado", true)
         .in("inscripcion_id", ids),
       supabase
@@ -205,6 +211,9 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
         tiempo: resultado?.tiempo_oficial ?? null,
         puesto: resultado?.posicion_general ?? null,
         participantes: participantesPorEvento.get(i.evento_id) ?? null,
+        puestoCategoria: resultado?.posicion_categoria ?? null,
+        banner: evento?.imagen_banner_url ?? null,
+        disciplina: evento?.disciplina ?? null,
         esPropia: i.corredor_id === corredorId,
         participante:
           i.corredor_id === corredorId
@@ -277,6 +286,12 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
     ? { tiempo: marcaHabitual.tiempo, distanciaKm: marcaHabitual.distanciaKm }
     : null;
 
+  const podios = propiasFinalizadas.filter(
+    (c) =>
+      (c.puesto !== null && c.puesto <= 3) ||
+      (c.puestoCategoria !== null && c.puestoCategoria <= 3)
+  ).length;
+
   // El club no está en el perfil: se declara en cada inscripción. Vale el de la
   // más reciente que lo traiga.
   const propias = inscripciones.filter((i) => i.corredor_id === corredorId);
@@ -292,7 +307,7 @@ export async function trayectoriaDelCorredor(corredorId: string): Promise<Trayec
     proximas: carreras.filter((c) => c.clase === "proxima").reverse(),
     finalizadas,
     canceladas: carreras.filter((c) => c.clase === "cancelada"),
-    metricas: { carreras: propiasFinalizadas.length, kmTotales, mejor, mejores },
+    metricas: { carreras: propiasFinalizadas.length, kmTotales, mejor, mejores, podios },
     club,
     desdeAnio: primera ? new Date(primera.created_at).getFullYear() : null,
   };
