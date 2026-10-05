@@ -6,10 +6,11 @@ import { PantallaEstado } from "@/components/ui/PantallaEstado";
 
 export default function ErrorAdmin({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  /** Vuelve a pedir los datos al servidor; `reset` solo repintaba. */
+  unstable_retry: () => void;
 }) {
   useEffect(() => {
     console.error("Error en la consola de plataforma:", error);
@@ -22,7 +23,7 @@ export default function ErrorAdmin({
       descripcion="Reintenta. Si persiste, revisa el registro del servidor: esta consola opera sobre todas las empresas y conviene no dar nada por supuesto."
       accion={{ href: "/admin", texto: "Volver a la consola" }}
     >
-      <Boton variante="secundaria" onClick={reset}>
+      <Boton variante="secundaria" onClick={() => unstable_retry()}>
         Reintentar
       </Boton>
     </PantallaEstado>

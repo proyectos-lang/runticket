@@ -6,10 +6,11 @@ import { PantallaEstado } from "@/components/ui/PantallaEstado";
 
 export default function ErrorGlobal({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  /** Vuelve a pedir los datos al servidor; `reset` solo repintaba. */
+  unstable_retry: () => void;
 }) {
   // En producción el mensaje real no llega al cliente (Next solo manda el
   // `digest`), así que dejarlo en consola es la única forma de correlacionarlo
@@ -25,7 +26,7 @@ export default function ErrorGlobal({
       descripcion="No es culpa tuya. Vuelve a intentarlo; si sigue fallando, avísanos indicando qué estabas haciendo."
       accion={{ href: "/", texto: "Ir al inicio" }}
     >
-      <Boton variante="secundaria" onClick={reset}>
+      <Boton variante="secundaria" onClick={() => unstable_retry()}>
         Reintentar
       </Boton>
     </PantallaEstado>

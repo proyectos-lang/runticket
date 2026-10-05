@@ -6,10 +6,11 @@ import { PantallaEstado } from "@/components/ui/PantallaEstado";
 
 export default function ErrorPanel({
   error,
-  reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  /** Vuelve a pedir los datos al servidor; `reset` solo repintaba. */
+  unstable_retry: () => void;
 }) {
   useEffect(() => {
     console.error("Error en el panel:", error);
@@ -22,7 +23,7 @@ export default function ErrorPanel({
       descripcion="Las guardas de permisos y las consultas del panel pueden fallar si tu sesión caducó o si cambiaste de empresa en otra pestaña. Reintenta antes de dar nada por perdido."
       accion={{ href: "/panel", texto: "Volver al panel" }}
     >
-      <Boton variante="secundaria" onClick={reset}>
+      <Boton variante="secundaria" onClick={() => unstable_retry()}>
         Reintentar
       </Boton>
     </PantallaEstado>
