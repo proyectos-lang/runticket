@@ -1,6 +1,8 @@
 import { RegistroForm } from "./RegistroForm";
+import { tokenCsrf } from "@/lib/csrf";
 
-export default function RegistroPage() {
+export default async function RegistroPage() {
+  const csrf = await tokenCsrf();
   return (
     <div className="flex flex-col gap-6">
       <div className="text-center">
@@ -9,7 +11,7 @@ export default function RegistroPage() {
           Podrás completar tu perfil de corredor al inscribirte a tu primera carrera.
         </p>
       </div>
-      <RegistroForm />
+      <RegistroForm csrf={csrf} />
     </div>
   );
 }

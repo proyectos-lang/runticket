@@ -3,15 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { BuscadorUsuarios } from "./BuscadorUsuarios";
 import { FilaUsuario } from "./FilaUsuario";
 import { CrearUsuarioForm } from "./CrearUsuarioForm";
+import { primero } from "@/lib/parametros";
 
 const POR_PAGINA = 50;
 
 export default async function UsuariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string | string[] }>;
 }) {
-  const { q } = await searchParams;
+  const q = primero((await searchParams).q, 80);
   const supabase = await createClient();
 
   // La RLS de `perfiles` ya restringe esta lectura al super_admin, así que basta

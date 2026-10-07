@@ -2,13 +2,17 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PerfilForm } from "./PerfilForm";
 import { SubidorAvatar } from "@/components/portal/SubidorAvatar";
+import { primero } from "@/lib/parametros";
+import { rutaInternaSegura } from "@/lib/seguridad";
 
 export default async function PerfilPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string | string[] }>;
 }) {
-  const { next } = await searchParams;
+  // Solo rutas internas y solo la primera: lo que va en un campo oculto no se
+  // refleja sin comprobar.
+  const next = rutaInternaSegura(primero((await searchParams).next)) ?? undefined;
   const supabase = await createClient();
 
   const {

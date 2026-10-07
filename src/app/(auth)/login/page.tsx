@@ -6,6 +6,8 @@ import { ambitoDelUsuario } from "@/lib/auth/destino";
 import { rutaInternaSegura } from "@/lib/seguridad";
 import { LoginForm } from "./LoginForm";
 import { enlaceWhatsAppPlataforma, MENSAJE_ORGANIZADOR } from "@/lib/contacto";
+import { tokenCsrf } from "@/lib/csrf";
+import { primero } from "@/lib/parametros";
 
 /**
  * `/auth/confirmar` redirige aquí con `?error=` cuando un enlace de correo no
@@ -41,16 +43,21 @@ const MOTIVOS = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string; como?: string }>;
+  searchParams: Promise<{ next?: string | string[]; error?: string | string[]; como?: string | string[] }>;
 }) {
-  const { next, error, como } = await searchParams;
+  const crudos = await searchParams;
+  // Un `next` repetido o externo no se refleja en el campo oculto: se descarta.
+  const next = rutaInternaSegura(primero(crudos.next)) ?? undefined;
+  const error = primero(crudos.error);
+  const como = primero(crudos.como);
+  const csrf = await tokenCsrf();
   const motivo = error && error in MOTIVOS ? MOTIVOS[error as keyof typeof MOTIVOS] : null;
   const organizador = como === "organizador";
 
   // Quien ya está dentro no tiene nada que hacer aquí: se le lleva a donde iba,
   // o a su área. Antes veía el formulario otra vez, como si no hubiera entrado.
   if (await getUsuarioActual()) {
-    redirect(rutaInternaSegura(next) ?? (await ambitoDelUsuario()).href);
+    redirect(next ?? (await ambitoDelUsuario()).href);
   }
 
   return (
@@ -86,7 +93,7 @@ export default async function LoginPage({
         </Aviso>
       )}
 
-      <LoginForm next={next ?? (organizador ? "/panel" : undefined)} organizador={organizador} />
+      <LoginForm next={next ?? (organizador ? "/panel" : undefined)} organizador={organizador} csrf={csrf} />
 
       <p className="text-center text-sm text-atenuado">
         {organizador ? (

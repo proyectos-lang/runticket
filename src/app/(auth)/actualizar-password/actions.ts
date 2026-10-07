@@ -1,5 +1,6 @@
 "use server";
 
+import { csrfValido, MENSAJE_CSRF } from "@/lib/csrf";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ambitoDelUsuario } from "@/lib/auth/destino";
@@ -15,6 +16,10 @@ export async function actualizarPassword(
   _prevState: ActualizarPasswordState,
   formData: FormData
 ): Promise<ActualizarPasswordState> {
+  if (!(await csrfValido(formData))) {
+    return { status: "error", message: MENSAJE_CSRF };
+  }
+
   const parsed = actualizarPasswordSchema.safeParse({
     password: formData.get("password"),
     confirmarPassword: formData.get("confirmarPassword"),

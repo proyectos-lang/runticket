@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ambitoDelUsuario } from "@/lib/auth/destino";
 import { loginSchema } from "@/lib/validacion/auth";
 import { dentroDelLimite, MENSAJE_LIMITE, rutaInternaSegura } from "@/lib/seguridad";
+import { csrfValido, MENSAJE_CSRF } from "@/lib/csrf";
 
 export type LoginState = {
   status: "idle" | "error";
@@ -22,6 +23,10 @@ export type LoginState = {
 
 export async function iniciarSesion(_prevState: LoginState, formData: FormData): Promise<LoginState> {
   const correoEscrito = typeof formData.get("correo") === "string" ? String(formData.get("correo")) : "";
+
+  if (!(await csrfValido(formData))) {
+    return { status: "error", message: MENSAJE_CSRF, correo: correoEscrito };
+  }
 
   // Freno al probado sistemático de contraseñas.
   if (!(await dentroDelLimite("login"))) {

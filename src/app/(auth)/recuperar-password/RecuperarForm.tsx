@@ -7,7 +7,7 @@ import { Boton } from "@/components/ui/Boton";
 
 const initialState: RecuperarState = { status: "idle" };
 
-export function RecuperarForm() {
+export function RecuperarForm({ csrf }: { csrf: string }) {
   const [state, formAction, pending] = useActionState(solicitarRecuperacion, initialState);
 
   if (state.status === "enviado") {
@@ -20,6 +20,7 @@ export function RecuperarForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <input type="hidden" name="csrf" value={csrf} />
       <Campo label="Correo electrónico" name="correo" type="email" required errors={state.errors?.correo} />
       <Boton variante="primaria" type="submit" disabled={pending} className="mt-2">
         {pending ? "Enviando…" : "Enviar enlace de recuperación"}

@@ -1,5 +1,6 @@
 "use server";
 
+import { csrfValido, MENSAJE_CSRF } from "@/lib/csrf";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -13,6 +14,10 @@ export type RegistroState = {
 };
 
 export async function registrarCuenta(_prevState: RegistroState, formData: FormData): Promise<RegistroState> {
+  if (!(await csrfValido(formData))) {
+    return { status: "error", message: MENSAJE_CSRF };
+  }
+
   // Antes de tocar nada: el registro está abierto a internet y sin freno se
   // podrían crear cuentas en masa (y disparar correos de confirmación).
   if (!(await dentroDelLimite("registro"))) {

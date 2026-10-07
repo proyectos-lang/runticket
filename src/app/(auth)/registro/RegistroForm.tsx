@@ -10,7 +10,7 @@ import { registrarCuenta, type RegistroState } from "./actions";
 
 const initialState: RegistroState = { status: "idle" };
 
-export function RegistroForm() {
+export function RegistroForm({ csrf }: { csrf: string }) {
   const [state, formAction, pending] = useActionState(registrarCuenta, initialState);
 
   if (state.status === "revisa-correo") {
@@ -28,6 +28,7 @@ export function RegistroForm() {
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <input type="hidden" name="csrf" value={csrf} />
       {state.status === "error" && state.message && (
         <Aviso
           tono="rojo"
@@ -59,7 +60,7 @@ export function RegistroForm() {
         name="password"
         required
         conMedidor
-        autoComplete="new-password"
+        autoComplete="off"
         errors={state.errors?.password}
       />
 

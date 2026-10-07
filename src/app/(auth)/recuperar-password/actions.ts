@@ -1,5 +1,6 @@
 "use server";
 
+import { csrfValido, MENSAJE_CSRF } from "@/lib/csrf";
 import { createClient } from "@/lib/supabase/server";
 import { recuperarPasswordSchema } from "@/lib/validacion/auth";
 import { dentroDelLimite, MENSAJE_LIMITE } from "@/lib/seguridad";
@@ -14,6 +15,10 @@ export async function solicitarRecuperacion(
   _prevState: RecuperarState,
   formData: FormData
 ): Promise<RecuperarState> {
+  if (!(await csrfValido(formData))) {
+    return { status: "error", message: MENSAJE_CSRF };
+  }
+
   // Cada intento manda un correo: sin freno se puede usar para inundar la
   // bandeja de cualquier persona cuya dirección se conozca.
   if (!(await dentroDelLimite("recuperarPassword"))) {

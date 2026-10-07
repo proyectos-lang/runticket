@@ -10,7 +10,15 @@ import { iniciarSesion, type LoginState } from "./actions";
 
 const initialState: LoginState = { status: "idle" };
 
-export function LoginForm({ next, organizador = false }: { next?: string; organizador?: boolean }) {
+export function LoginForm({
+  next,
+  organizador = false,
+  csrf,
+}: {
+  next?: string;
+  organizador?: boolean;
+  csrf: string;
+}) {
   const [state, formAction, pending] = useActionState(iniciarSesion, initialState);
 
   // El límite de intentos no se resuelve reintentando, así que además del aviso
@@ -20,6 +28,7 @@ export function LoginForm({ next, organizador = false }: { next?: string; organi
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {next && <input type="hidden" name="next" value={next} />}
+      <input type="hidden" name="csrf" value={csrf} />
 
       {state.status === "error" && state.message && <Aviso tono="rojo">{state.message}</Aviso>}
 
@@ -31,7 +40,16 @@ export function LoginForm({ next, organizador = false }: { next?: string; organi
         defaultValue={state.correo}
         errors={state.errors?.correo}
       />
-      <CampoContrasena label="Contraseña" name="password" required errors={state.errors?.password} />
+      {/* `autocomplete="off"` lo pide la auditoría de seguridad; los gestores
+          de contraseñas lo ignoran para campos de contraseña, así que no les
+          afecta. */}
+      <CampoContrasena
+        label="Contraseña"
+        name="password"
+        required
+        autoComplete="off"
+        errors={state.errors?.password}
+      />
 
       <Boton variante="primaria" type="submit" disabled={pending || bloqueado} ancho className="mt-2">
         {pending ? "Entrando…" : "Entrar"}

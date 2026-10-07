@@ -7,11 +7,12 @@ import { Boton } from "@/components/ui/Boton";
 
 const initialState: ActualizarPasswordState = { status: "idle" };
 
-export function ActualizarPasswordForm() {
+export function ActualizarPasswordForm({ csrf }: { csrf: string }) {
   const [state, formAction, pending] = useActionState(actualizarPassword, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <input type="hidden" name="csrf" value={csrf} />
       <Campo label="Nueva contraseña" name="password" type="password" required errors={state.errors?.password} />
       <Campo
         label="Confirma la nueva contraseña"
