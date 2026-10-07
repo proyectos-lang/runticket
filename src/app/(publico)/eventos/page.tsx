@@ -5,7 +5,7 @@ import {
   contarPorDisciplina,
   departamentosConCarreras,
 } from "@/lib/eventos/consultas";
-import { DISCIPLINAS, DISCIPLINA_LABEL } from "@/lib/disciplinas";
+import { DISCIPLINA_LABEL } from "@/lib/disciplinas";
 import Link from "next/link";
 import { FilaCarrera } from "@/components/publico/FilaCarrera";
 import { TarjetaCarrera } from "@/components/publico/TarjetaCarrera";
@@ -14,8 +14,7 @@ import { BotonEnlace } from "@/components/ui/Boton";
 import { EtiquetaMono } from "@/components/ui/Datos";
 import { FiltrosEventos } from "./FiltrosEventos";
 import type { Disciplina } from "@/lib/supabase/database.types";
-import { primero, uuidOpcional, unoDe, conFormato } from "@/lib/parametros";
-import { redirect } from "next/navigation";
+import { limpiarBusqueda, type Busqueda } from "@/lib/eventos/filtros";
 
 export const metadata: Metadata = {
   title: "Carreras | RunTicket",
@@ -32,17 +31,6 @@ function parseDistancia(valor?: string) {
   };
 }
 
-type Busqueda = {
-  q?: string;
-  ciudad?: string;
-  mes?: string;
-  distancia?: string;
-  disciplina?: string;
-  departamento?: string;
-  precioMax?: string;
-  orden?: string;
-  vista?: string;
-};
 
 /**
  * El catálogo se ordena y se filtra por la URL, y `searchParams` solo existe en
@@ -58,41 +46,9 @@ export default function EventosPage({ searchParams }: { searchParams: Promise<Bu
   );
 }
 
-/**
- * Cada filtro se valida antes de usarse y, sobre todo, antes de volver a salir
- * en un enlace: la auditoría metió `orden=type C:\Windows\win.ini` y lo
- * encontró reflejado. Lo que no encaja con lo que puede ser, se descarta.
- */
-function limpiarBusqueda(crudo: Record<string, string | string[] | undefined>): Busqueda {
-  return {
-    q: primero(crudo.q, 80),
-    ciudad: uuidOpcional(crudo.ciudad),
-    mes: conFormato(crudo.mes, /^\d{4}-(0[1-9]|1[0-2])$/),
-    distancia: conFormato(crudo.distancia, /^[0-9]{1,3}(-[0-9]{0,3})?$/, 10),
-    disciplina: unoDe(crudo.disciplina, DISCIPLINAS),
-    departamento: uuidOpcional(crudo.departamento),
-    precioMax: conFormato(crudo.precioMax, /^[0-9]{1,6}$/),
-    orden: unoDe(crudo.orden, ["precio"] as const),
-    vista: unoDe(crudo.vista, ["rejilla"] as const),
-  };
-}
-
 async function Catalogo({ searchParams }: { searchParams: Promise<Busqueda> }) {
-  const crudos = (await searchParams) as Record<string, string | string[] | undefined>;
-  const p = limpiarBusqueda(crudos);
-
-  // Si la URL traía algo que no vale (un parámetro repetido, un valor que no
-  // es un filtro), se redirige a la versión limpia en vez de responder con
-  // ella: así ni siquiera la carga inicial de Next la repite en la página.
-  const limpios = new URLSearchParams(Object.entries(p).filter(([, v]) => v) as [string, string][]);
-  const recibidos = new URLSearchParams(
-    Object.entries(crudos)
-      .filter(([k]) => k !== "_rsc")
-      .map(([k, v]) => [k, Array.isArray(v) ? v[0] ?? "" : (v ?? "")])
-  );
-  if (limpios.toString() !== recibidos.toString()) {
-    redirect(limpios.size ? `/eventos?${limpios}` : "/eventos");
-  }
+  // Validados igual que en el proxy, que ya redirigió cualquier URL sucia.
+  const p = limpiarBusqueda((await searchParams) as Record<string, string | string[] | undefined>);
 
   const [eventos, conteoDisciplinas, departamentos] = await Promise.all([
     listarEventosPublicos({
